@@ -1,0 +1,45 @@
+/* Keep actions readable in the compact sidebar and make recovery visible. */
+:where(button,a,input,select,textarea,summary):focus-visible {
+  outline: 2px solid #46886a;
+  outline-offset: 3px;
+}
+#page-title:focus { outline: none; }
+.service-notice {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 14px 18px; margin-bottom: 18px; border: 1px solid #d7b88c;
+  border-radius: 12px; background: #fff8e9; color: #75552e;
+  font-size: 12px; line-height: 1.8; overflow-wrap: anywhere;
+}
+.service-notice .button { flex-shrink: 0; }
+.submission-route:empty { display: none; }
+.submission-route {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  margin-top: 12px; padding: 15px; border: 1px solid #c4d8ce;
+  border-radius: 10px; background: #f0f7f4; color: #3c6556; font-size: 12px;
+}
+.submission-route strong { font-size: 13px; }
+.submission-route p { margin: 6px 0 0; line-height: 1.8; }
+.submission-route .button { flex-shrink: 0; }
+.submission-route + .input-mode-row { margin-top: 18px; }
+.viewer-legend .legend-stops { flex-wrap: wrap; row-gap: 5px; }
+.job-dialog .field-label { font-size: 12px; }
+.job-dialog .dialog-description, .job-dialog .info-note { font-size: 12px; }
+.job-dialog .engine-option strong { font-size: 12px; }
+.job-dialog .engine-option small { font-size: 10px; line-height: 1.5; }
+.job-dialog .sequence-meta { font-size: 10px; flex-wrap: wrap; gap: 5px; }
+.job-dialog .form-error { font-size: 12px; }
+.job-dialog .dialog-footer { position: sticky; bottom: -1px; background: white; padding-bottom: 12px; z-index: 2; box-shadow: 0 28px 0 white; }
+.job-dialog .engine-option:focus-visible { outline-offset: 2px; }
+.job-dialog .engine-option[aria-pressed="true"] { box-shadow: inset 0 0 0 1px #709f70; }
+@media(max-width:1000px) {
+  .sidebar nav { margin-top: 22px; }
+  .sidebar .nav-item { flex-direction: column; gap: 5px; min-height: 57px; height: auto; padding: 8px 0; }
+  .sidebar .nav-item::after { content: attr(data-short-label); font-size: 10px; line-height: 1.2; letter-spacing: 0; }
+  .sidebar .nav-item svg { width: 19px; height: 19px; }
+}
+@media(max-width:600px) {
+  .submission-route,.service-notice { flex-direction: column; align-items: stretch; gap: 10px; }
+  .submission-route .button { min-height: 40px; }
+  .job-dialog { max-height: calc(100dvh - 24px); }
+  .job-dialog .parameter-grid { gap: 13px 10px; }
+}

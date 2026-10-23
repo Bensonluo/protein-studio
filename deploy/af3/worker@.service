@@ -1,0 +1,33 @@
+# Install as /etc/systemd/system/foldspace-af3-worker@.service
+# Instance ID must match /etc/foldspace/workers/<id>.json and <id>.env.
+[Unit]
+Description=Foldspace resident AF3 GPU slot %i
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=600
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=foldspace
+Group=foldspace
+WorkingDirectory=/srv/foldspace
+EnvironmentFile=/etc/foldspace/workers/%i.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/foldspace/bin/python /srv/foldspace/scripts/run_gpu_worker.py --config /etc/foldspace/workers/%i.json
+Restart=on-failure
+RestartSec=15
+KillSignal=SIGTERM
+# SIGTERM reaches the worker first. It drains its current batch; cgroup cleanup
+# occurs if the grace period expires. Accepted targets are not rerun.
+KillMode=mixed
+TimeoutStopSec=1800
+StateDirectory=foldspace-workers/%i
+StateDirectoryMode=0700
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

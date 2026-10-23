@@ -1,0 +1,532 @@
+{
+  "schemaVersion": 1,
+  "description": "Administrator-owned examples. Replace paths and actual immutable versions, validate asset inventory, then remove example:true. No databases are downloaded by Protein Studio.",
+  "profiles": {
+    "reference": {
+      "engine": "reference",
+      "name": "Public structure replay — no sequence database",
+      "release": "bundled-public-fixtures",
+      "root": null,
+      "prepareVersion": "reference-replay-v1",
+      "searchVersion": "not-applicable",
+      "assets": [],
+      "searchParameters": {},
+      "templateParameters": {},
+      "sourceURLs": []
+    },
+    "af2-reduced-local": {
+      "name": "AF2 reduced-database inventory (monomer + multimer assets)",
+      "engine": "alphafold2",
+      "example": true,
+      "release": "AF2-v2.3.2-database-manifest-REPLACE_WITH_SNAPSHOT",
+      "root": "/srv/protein-databases/alphafold2",
+      "prepareVersion": "REPLACE_WITH_INSTALLED_ENGINE_AND_RUNNER_VERSION",
+      "searchVersion": "REPLACE_WITH_INSTALLED_SEARCH_TOOL_VERSION",
+      "assets": [
+        {
+          "name": "uniref90_database_path",
+          "kind": "sequence",
+          "type": "file",
+          "path": "uniref90/uniref90.fasta",
+          "required": true
+        },
+        {
+          "name": "mgnify_database_path",
+          "kind": "sequence",
+          "type": "file",
+          "path": "mgnify/mgy_clusters_2022_05.fa",
+          "required": true
+        },
+        {
+          "name": "small_bfd_database_path",
+          "kind": "sequence",
+          "type": "file",
+          "path": "small_bfd/bfd-first_non_consensus_sequences.fasta",
+          "required": true
+        },
+        {
+          "name": "uniprot_database_path",
+          "kind": "sequence",
+          "type": "file",
+          "path": "uniprot/uniprot.fasta",
+          "required": true
+        },
+        {
+          "name": "pdb_seqres_database_path",
+          "kind": "template",
+          "type": "file",
+          "path": "pdb_seqres/pdb_seqres.txt",
+          "required": true
+        },
+        {
+          "name": "template_mmcif_dir",
+          "kind": "template",
+          "type": "directory",
+          "path": "pdb_mmcif/mmcif_files",
+          "required": true
+        },
+        {
+          "name": "obsolete_pdbs_path",
+          "kind": "template",
+          "type": "file",
+          "path": "pdb_mmcif/obsolete.dat",
+          "required": true
+        },
+        {
+          "name": "pdb70_database_path",
+          "kind": "template",
+          "type": "prefix",
+          "path": "pdb70/pdb70",
+          "required": true,
+          "requiredSuffixes": [
+            "_a3m.ffdata",
+            "_a3m.ffindex",
+            "_hhm.ffdata",
+            "_hhm.ffindex",
+            "_cs219.ffdata",
+            "_cs219.ffindex"
+          ]
+        }
+      ],
+      "searchParameters": {},
+      "templateParameters": {
+        "max_template_date": "2021-09-30"
+      },
+      "sourceURLs": [
+        "https://github.com/google-deepmind/alphafold/blob/v2.3.2/README.md",
+        "https://github.com/google-deepmind/alphafold/blob/v2.3.2/run_alphafold.py"
+      ],
+      "notes": "Registry inventory only; current campaign staged execution supports AF3 and ColabFold. The direct AF2 runner uses administrator CLI flags. For full_dbs add BFD and UniRef30 explicit index members and change the CLI preset."
+    },
+    "af3-protein-local": {
+      "name": "AF3 protein-only local MSA and templates",
+      "engine": "alphafold3",
+      "example": true,
+      "release": "AF3-v3.0.4-official-databases-with-pdb-snapshot-REPLACE",
+      "root": "/srv/protein-databases/alphafold3",
+      "prepareVersion": "REPLACE_WITH_INSTALLED_ENGINE_AND_RUNNER_VERSION",
+      "searchVersion": "REPLACE_WITH_INSTALLED_SEARCH_TOOL_VERSION",
+      "assets": [
+        {
+          "name": "uniref90_database_path",
+          "kind": "sequence",
+          "type": "file",
+          "path": "uniref90_2022_05.fa",
+          "required": true
+        },
+        {
+          "name": "mgnify_database_path",
+          "kind": "sequence",
+          "type": "file",
+          "path": "mgy_clusters_2022_05.fa",
+          "required": true
+        },
+        {
+          "name": "small_bfd_database_path",
+          "kind": "sequence",
+          "type": "file",
+          "path": "bfd-first_non_consensus_sequences.fasta",
+          "required": true
+        },
+        {
+          "name": "uniprot_cluster_annot_database_path",
+          "kind": "sequence",
+          "type": "file",
+          "path": "uniprot_all_2021_04.fa",
+          "required": true
+        },
+        {
+          "name": "seqres_database_path",
+          "kind": "template",
+          "type": "file",
+          "path": "pdb_seqres_2022_09_28.fasta",
+          "required": true
+        },
+        {
+          "name": "pdb_database_path",
+          "kind": "template",
+          "type": "directory",
+          "path": "mmcif_files",
+          "required": true
+        },
+        {
+          "name": "ntrna_database_path",
+          "kind": "sequence",
+          "type": "file",
+          "path": "nt_rna_2023_02_23_clust_seq_id_90_cov_80_rep_seq.fasta",
+          "required": true
+        },
+        {
+          "name": "rfam_database_path",
+          "kind": "sequence",
+          "type": "file",
+          "path": "rfam_14_9_clust_seq_id_90_cov_80_rep_seq.fasta",
+          "required": true
+        },
+        {
+          "name": "rna_central_database_path",
+          "kind": "sequence",
+          "type": "file",
+          "path": "rnacentral_active_seq_id_90_cov_80_linclust.fasta",
+          "required": true
+        }
+      ],
+      "searchParameters": {
+        "jackhmmer_n_cpu": 8,
+        "nhmmer_n_cpu": 8
+      },
+      "templateParameters": {
+        "max_template_date": "2021-09-30"
+      },
+      "sourceURLs": [
+        "https://github.com/google-deepmind/alphafold3/blob/v3.0.4/docs/installation.md",
+        "https://github.com/google-deepmind/alphafold3/blob/v3.0.4/docs/performance.md",
+        "https://github.com/google-deepmind/alphafold3/blob/v3.0.4/fetch_databases.sh"
+      ],
+      "notes": "The protein UI still requires all official v3.0.4 database paths here: the unmodified official CLI resolves RNA database paths when constructing DataPipelineConfig even for protein-only inputs. Do not substitute empty placeholders. The registry checks explicit assets; runtime semantic validation remains the installed engine responsibility."
+    },
+    "colabfold-local": {
+      "name": "ColabFold local CPU MMseqs2, no templates",
+      "engine": "colabfold",
+      "example": true,
+      "release": "uniref30_2302+colabfold_envdb_202108-REPLACE_WITH_INSTALLED_MANIFEST",
+      "root": "/srv/protein-databases/colabfold",
+      "prepareVersion": "REPLACE_WITH_INSTALLED_ENGINE_AND_RUNNER_VERSION",
+      "searchVersion": "REPLACE_WITH_INSTALLED_SEARCH_TOOL_VERSION",
+      "assets": [
+        {
+          "name": "uniref30_db",
+          "kind": "sequence",
+          "type": "prefix",
+          "path": "uniref30_2302_db",
+          "required": true,
+          "requiredSuffixes": [
+            "",
+            ".dbtype",
+            ".index",
+            "_seq",
+            "_seq.dbtype",
+            "_seq.index",
+            "_aln",
+            "_aln.dbtype",
+            "_aln.index"
+          ]
+        },
+        {
+          "name": "environment_db",
+          "kind": "sequence",
+          "type": "prefix",
+          "path": "colabfold_envdb_202108_db",
+          "required": true,
+          "requiredSuffixes": [
+            "",
+            ".dbtype",
+            ".index",
+            "_seq",
+            "_seq.dbtype",
+            "_seq.index",
+            "_aln",
+            "_aln.dbtype",
+            "_aln.index"
+          ]
+        },
+        {
+          "name": "uniref30_taxonomy",
+          "kind": "sequence",
+          "type": "file",
+          "path": "uniref30_2302_db_taxonomy",
+          "required": true
+        },
+        {
+          "name": "uniref30_mapping",
+          "kind": "sequence",
+          "type": "file",
+          "path": "uniref30_2302_db_mapping",
+          "required": true
+        }
+      ],
+      "searchParameters": {
+        "threads": 8,
+        "use_env": 1,
+        "use_env_pairing": 0,
+        "mmseqs": "/opt/colabfold/bin/mmseqs"
+      },
+      "templateParameters": {
+        "use_templates": false
+      },
+      "sourceURLs": [
+        "https://github.com/sokrypton/ColabFold/blob/main/README.md",
+        "https://github.com/sokrypton/ColabFold/blob/main/setup_databases.sh"
+      ],
+      "notes": "Verify explicit MMseqs family members against the installed setup_databases.sh release. CPU batch MSA normally uses MMSEQS_NO_INDEX=1; a .idx precomputed index is not universally required. Enable local templates only after adding template_db and local_pdb_path assets and recording their snapshots."
+    },
+    "af3-mmseqs-cpu": {
+      "name": "AF3 MMseqs2 CPU unpaired + native UniProt pairing/templates",
+      "engine": "alphafold3",
+      "validationProfile": "af3-mmseqs-v1",
+      "example": true,
+      "release": "REPLACE_WITH_IMMUTABLE_COLABFOLD_AND_UNIPROT_PDB_SNAPSHOTS",
+      "root": "/srv/protein-databases/colabfold-expandable",
+      "prepareVersion": "mmseqs-af3-v1+REPLACE_WITH_RUNNER_COMMIT",
+      "searchVersion": "REPLACE_WITH_INSTALLED_MMSEQS_HMMER_VERSIONS",
+      "searchBackend": {
+        "id": "mmseqs2-colabfold",
+        "device": "cpu",
+        "version": "REPLACE_WITH_INSTALLED_MMSEQS_VERSION",
+        "colabfoldVersion": "1.6.3",
+        "adapterVersion": "mmseqs-af3-v1",
+        "databaseFormat": "colabfold-expandable",
+        "gpuServer": false,
+        "pairingStrategy": "native-uniprot",
+        "templateStrategy": "native-af3"
+      },
+      "prepareCommand": [
+        "/opt/colabfold/bin/python",
+        "/srv/foldspace/scripts/mmseqs_af3_runner.py",
+        "--phase",
+        "search",
+        "--input",
+        "{input_json}",
+        "--profile-json",
+        "{profile_json}",
+        "--output-dir",
+        "{output_dir}"
+      ],
+      "finalizeCommand": [
+        "/opt/colabfold/bin/python",
+        "/srv/foldspace/scripts/mmseqs_af3_runner.py",
+        "--phase",
+        "finalize",
+        "--input",
+        "{input_json}",
+        "--profile-json",
+        "{profile_json}",
+        "--output-dir",
+        "{output_dir}"
+      ],
+      "executables": {
+        "colabfold_search_binary": "/opt/colabfold/bin/colabfold_search",
+        "mmseqs_binary": "/opt/colabfold/bin/mmseqs",
+        "af3_python": "/opt/af3/venv/bin/python",
+        "jackhmmer_binary_path": "/usr/bin/jackhmmer",
+        "hmmsearch_binary_path": "/usr/bin/hmmsearch",
+        "hmmbuild_binary_path": "/usr/bin/hmmbuild"
+      },
+      "assets": [
+        {
+          "name": "uniref30_db",
+          "kind": "sequence",
+          "type": "prefix",
+          "path": "uniref30_2302_db",
+          "required": true,
+          "requiredSuffixes": [
+            "",
+            ".dbtype",
+            ".index",
+            "_seq",
+            "_seq.dbtype",
+            "_seq.index",
+            "_seq_h",
+            "_seq_h.dbtype",
+            "_seq_h.index",
+            "_aln",
+            "_aln.dbtype",
+            "_aln.index"
+          ]
+        },
+        {
+          "name": "environment_db",
+          "kind": "sequence",
+          "type": "prefix",
+          "path": "colabfold_envdb_202108_db",
+          "required": true,
+          "requiredSuffixes": [
+            "",
+            ".dbtype",
+            ".index",
+            "_seq",
+            "_seq.dbtype",
+            "_seq.index",
+            "_seq_h",
+            "_seq_h.dbtype",
+            "_seq_h.index",
+            "_aln",
+            "_aln.dbtype",
+            "_aln.index"
+          ]
+        },
+        {
+          "name": "uniprot_cluster_annot_database_path",
+          "kind": "sequence",
+          "type": "file",
+          "path": "native/uniprot_all_2021_04.fa",
+          "required": true
+        },
+        {
+          "name": "seqres_database_path",
+          "kind": "template",
+          "type": "file",
+          "path": "native/pdb_seqres_2022_09_28.fasta",
+          "required": true
+        },
+        {
+          "name": "pdb_database_path",
+          "kind": "template",
+          "type": "directory",
+          "path": "native/mmcif_files",
+          "required": true
+        }
+      ],
+      "searchParameters": {
+        "threads": 8,
+        "use_env": 1,
+        "db_load_mode": 2,
+        "s": 8,
+        "jackhmmer_n_cpu": 8
+      },
+      "templateParameters": {
+        "max_template_date": "2021-09-30"
+      },
+      "sourceURLs": [
+        "https://github.com/sokrypton/ColabFold/tree/v1.6.3",
+        "https://github.com/soedinglab/MMseqs2/wiki",
+        "https://github.com/google-deepmind/alphafold3/blob/v3.0.4/docs/input.md"
+      ],
+      "notes": "Example only. Native AF3 remains a separate selectable profile. CPU/GPU MMseqs results are different search provenance; compare scientific outcomes before promotion. GPU requires independent SEARCH_GPU_GROUPS_JSON and common host GPU_LOCK_DIR. GPU databaseFormat is an administrator declaration, not a proof of padded/index compatibility. External persistent gpuserver is not managed or accepted. Native CPU finalization runs after releasing the search GPU lease."
+    },
+    "af3-mmseqs-gpu": {
+      "name": "AF3 MMseqs2 GPU unpaired + native UniProt pairing/templates",
+      "engine": "alphafold3",
+      "validationProfile": "af3-mmseqs-v1",
+      "example": true,
+      "release": "REPLACE_WITH_IMMUTABLE_COLABFOLD_AND_UNIPROT_PDB_SNAPSHOTS",
+      "root": "/srv/protein-databases/colabfold-gpu",
+      "prepareVersion": "mmseqs-af3-v1+REPLACE_WITH_RUNNER_COMMIT",
+      "searchVersion": "REPLACE_WITH_INSTALLED_MMSEQS_HMMER_VERSIONS",
+      "searchBackend": {
+        "id": "mmseqs2-colabfold",
+        "device": "gpu",
+        "version": "REPLACE_WITH_INSTALLED_MMSEQS_VERSION",
+        "colabfoldVersion": "1.6.3",
+        "adapterVersion": "mmseqs-af3-v1",
+        "databaseFormat": "colabfold-gpu",
+        "gpuServer": false,
+        "pairingStrategy": "native-uniprot",
+        "templateStrategy": "native-af3"
+      },
+      "prepareCommand": [
+        "/opt/colabfold/bin/python",
+        "/srv/foldspace/scripts/mmseqs_af3_runner.py",
+        "--phase",
+        "search",
+        "--input",
+        "{input_json}",
+        "--profile-json",
+        "{profile_json}",
+        "--output-dir",
+        "{output_dir}"
+      ],
+      "finalizeCommand": [
+        "/opt/colabfold/bin/python",
+        "/srv/foldspace/scripts/mmseqs_af3_runner.py",
+        "--phase",
+        "finalize",
+        "--input",
+        "{input_json}",
+        "--profile-json",
+        "{profile_json}",
+        "--output-dir",
+        "{output_dir}"
+      ],
+      "executables": {
+        "colabfold_search_binary": "/opt/colabfold/bin/colabfold_search",
+        "mmseqs_binary": "/opt/colabfold/bin/mmseqs",
+        "af3_python": "/opt/af3/venv/bin/python",
+        "jackhmmer_binary_path": "/usr/bin/jackhmmer",
+        "hmmsearch_binary_path": "/usr/bin/hmmsearch",
+        "hmmbuild_binary_path": "/usr/bin/hmmbuild"
+      },
+      "assets": [
+        {
+          "name": "uniref30_db",
+          "kind": "sequence",
+          "type": "prefix",
+          "path": "uniref30_2302_db",
+          "required": true,
+          "requiredSuffixes": [
+            "",
+            ".dbtype",
+            ".index",
+            "_seq",
+            "_seq.dbtype",
+            "_seq.index",
+            "_seq_h",
+            "_seq_h.dbtype",
+            "_seq_h.index",
+            "_aln",
+            "_aln.dbtype",
+            "_aln.index"
+          ]
+        },
+        {
+          "name": "environment_db",
+          "kind": "sequence",
+          "type": "prefix",
+          "path": "colabfold_envdb_202108_db",
+          "required": true,
+          "requiredSuffixes": [
+            "",
+            ".dbtype",
+            ".index",
+            "_seq",
+            "_seq.dbtype",
+            "_seq.index",
+            "_seq_h",
+            "_seq_h.dbtype",
+            "_seq_h.index",
+            "_aln",
+            "_aln.dbtype",
+            "_aln.index"
+          ]
+        },
+        {
+          "name": "uniprot_cluster_annot_database_path",
+          "kind": "sequence",
+          "type": "file",
+          "path": "native/uniprot_all_2021_04.fa",
+          "required": true
+        },
+        {
+          "name": "seqres_database_path",
+          "kind": "template",
+          "type": "file",
+          "path": "native/pdb_seqres_2022_09_28.fasta",
+          "required": true
+        },
+        {
+          "name": "pdb_database_path",
+          "kind": "template",
+          "type": "directory",
+          "path": "native/mmcif_files",
+          "required": true
+        }
+      ],
+      "searchParameters": {
+        "threads": 8,
+        "use_env": 1,
+        "db_load_mode": 2,
+        "jackhmmer_n_cpu": 8,
+        "prefilter_mode": 1
+      },
+      "templateParameters": {
+        "max_template_date": "2021-09-30"
+      },
+      "sourceURLs": [
+        "https://github.com/sokrypton/ColabFold/tree/v1.6.3",
+        "https://github.com/soedinglab/MMseqs2/wiki",
+        "https://github.com/google-deepmind/alphafold3/blob/v3.0.4/docs/input.md"
+      ],
+      "notes": "Example only. Native AF3 remains a separate selectable profile. CPU/GPU MMseqs results are different search provenance; compare scientific outcomes before promotion. GPU requires independent SEARCH_GPU_GROUPS_JSON and common host GPU_LOCK_DIR. GPU databaseFormat is an administrator declaration, not a proof of padded/index compatibility. External persistent gpuserver is not managed or accepted. Native CPU finalization runs after releasing the search GPU lease."
+    }
+  }
+}

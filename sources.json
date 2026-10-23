@@ -1,0 +1,709 @@
+{
+  "schema_version": 1,
+  "accessed": "2026-10-23",
+  "note": "Upstream documentation versions are not claims about locally installed runtime versions. Null license fields mean not applicable or not verified; consult the source-specific notes. No benchmark performance claims are made here.",
+  "sources": [
+    {
+      "id": "af2-repo",
+      "title": "AlphaFold 2 official repository",
+      "url": "https://github.com/google-deepmind/alphafold",
+      "type": "official-repository",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "main snapshot",
+      "code_license": "Apache-2.0",
+      "weights_license": "CC-BY-4.0 (official parameters)",
+      "supports": [
+        "AF2 adapter",
+        "code versus parameter license"
+      ]
+    },
+    {
+      "id": "af2-release",
+      "title": "AlphaFold 2 releases",
+      "url": "https://github.com/google-deepmind/alphafold/releases",
+      "type": "official-release",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "v2.3.2",
+      "code_license": null,
+      "weights_license": null,
+      "supports": [
+        "Observed latest release, not runtime detection"
+      ]
+    },
+    {
+      "id": "af3-repo",
+      "title": "AlphaFold 3 official repository",
+      "url": "https://github.com/google-deepmind/alphafold3",
+      "type": "official-repository",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "main snapshot",
+      "code_license": "Apache-2.0",
+      "weights_license": "Separate WEIGHTS_TERMS_OF_USE",
+      "supports": [
+        "AF3 adapter",
+        "input and installation documentation"
+      ]
+    },
+    {
+      "id": "af3-release",
+      "title": "AlphaFold 3 releases",
+      "url": "https://github.com/google-deepmind/alphafold3/releases",
+      "type": "official-release",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "v3.0.4; v3.0.3 code relicensing",
+      "code_license": null,
+      "weights_license": null,
+      "supports": [
+        "Observed release version",
+        "code license change does not relicense parameters"
+      ]
+    },
+    {
+      "id": "af3-code-license",
+      "title": "AlphaFold 3 code license",
+      "url": "https://github.com/google-deepmind/alphafold3/blob/main/LICENSE",
+      "type": "official-license",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "main snapshot",
+      "code_license": "Apache-2.0",
+      "weights_license": null,
+      "supports": [
+        "Code license"
+      ]
+    },
+    {
+      "id": "af3-weights",
+      "title": "AlphaFold 3 parameter terms",
+      "url": "https://github.com/google-deepmind/alphafold3/blob/main/WEIGHTS_TERMS_OF_USE.md",
+      "type": "official-terms",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "main snapshot",
+      "code_license": null,
+      "weights_license": "Restricted specified non-commercial uses",
+      "supports": [
+        "Weight licensing differs from code",
+        "No bundled parameters"
+      ]
+    },
+    {
+      "id": "af3-output",
+      "title": "AlphaFold 3 output documentation",
+      "url": "https://github.com/google-deepmind/alphafold3/blob/main/docs/output.md",
+      "type": "official-documentation",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "main snapshot",
+      "code_license": null,
+      "weights_license": null,
+      "supports": [
+        "Output normalization",
+        "pLDDT PAE ranking-score semantics",
+        "seed/sample results"
+      ]
+    },
+    {
+      "id": "colabfold-repo",
+      "title": "ColabFold official repository",
+      "url": "https://github.com/sokrypton/ColabFold",
+      "type": "official-repository",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "main snapshot",
+      "code_license": "MIT",
+      "weights_license": "Separate trained weight licenses",
+      "supports": [
+        "Local MSA workflow",
+        "batch prediction and compilation cache"
+      ]
+    },
+    {
+      "id": "colabfold-manifest",
+      "title": "ColabFold package manifest",
+      "url": "https://github.com/sokrypton/ColabFold/blob/main/pyproject.toml",
+      "type": "official-package-manifest",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "1.6.3",
+      "code_license": "MIT",
+      "weights_license": "Separate trained weight licenses",
+      "supports": [
+        "Package version",
+        "code versus weights"
+      ]
+    },
+    {
+      "id": "proteinfold-home",
+      "title": "nf-core/proteinfold documentation",
+      "url": "https://nf-co.re/proteinfold/2.0.0/",
+      "type": "official-documentation",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "2.0.0",
+      "code_license": null,
+      "weights_license": null,
+      "supports": [
+        "Existing prediction workflow"
+      ]
+    },
+    {
+      "id": "proteinfold-repo",
+      "title": "nf-core/proteinfold repository",
+      "url": "https://github.com/nf-core/proteinfold",
+      "type": "official-repository",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "main snapshot",
+      "code_license": "MIT",
+      "weights_license": "Per engine and dataset",
+      "supports": [
+        "Workflow license"
+      ]
+    },
+    {
+      "id": "proteinfold-usage",
+      "title": "nf-core/proteinfold usage",
+      "url": "https://nf-co.re/proteinfold/2.0.0/docs/usage/",
+      "type": "official-documentation",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "2.0.0",
+      "code_license": null,
+      "weights_license": null,
+      "supports": [
+        "Supported model modes",
+        "samplesheet and split FASTA",
+        "database layout"
+      ]
+    },
+    {
+      "id": "nextflow-repo",
+      "title": "Nextflow official repository",
+      "url": "https://github.com/nextflow-io/nextflow",
+      "type": "official-repository",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "master snapshot",
+      "code_license": "Apache-2.0",
+      "weights_license": null,
+      "supports": [
+        "Workflow engine license",
+        "separation of execution backends"
+      ]
+    },
+    {
+      "id": "nextflow-executor",
+      "title": "Nextflow executors",
+      "url": "https://docs.seqera.io/nextflow/executor",
+      "type": "official-documentation",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "stable documentation accessed 2026-10-23",
+      "code_license": null,
+      "weights_license": null,
+      "supports": [
+        "Slurm and executor abstraction",
+        "workflow and infrastructure separation"
+      ]
+    },
+    {
+      "id": "openfold",
+      "title": "OpenFold official repository",
+      "url": "https://github.com/aqlaboratory/openfold",
+      "type": "official-repository",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "main snapshot",
+      "code_license": "Apache-2.0",
+      "weights_license": "DeepMind pretrained parameters CC-BY-4.0; other weights not generalized",
+      "supports": [
+        "PyTorch AF2 implementation candidate",
+        "trainable implementation"
+      ]
+    },
+    {
+      "id": "protenix",
+      "title": "Protenix official repository",
+      "url": "https://github.com/bytedance/Protenix",
+      "type": "official-repository",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "main; v2 announced 2026-04-08",
+      "code_license": "Apache-2.0",
+      "weights_license": "v2 explicitly proprietary; other versions require artifact-specific check",
+      "supports": [
+        "Optional model candidate",
+        "do not label all weights open source"
+      ]
+    },
+    {
+      "id": "boltz",
+      "title": "Boltz official repository",
+      "url": "https://github.com/jwohlwend/boltz",
+      "type": "official-repository",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "main; Boltz-1/2 family",
+      "code_license": "MIT",
+      "weights_license": "MIT",
+      "supports": [
+        "Optional complex/affinity engine",
+        "code and weight license"
+      ]
+    },
+    {
+      "id": "boltz-prediction",
+      "title": "Boltz prediction guide",
+      "url": "https://github.com/jwohlwend/boltz/blob/main/docs/prediction.md",
+      "type": "official-documentation",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "main snapshot",
+      "code_license": null,
+      "weights_license": null,
+      "supports": [
+        "YAML and batch inference contract for future adapter"
+      ]
+    },
+    {
+      "id": "3dmol",
+      "title": "3Dmol.js official repository",
+      "url": "https://github.com/3dmol/3Dmol.js",
+      "type": "official-repository",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "master snapshot",
+      "code_license": "BSD-3-Clause plus bundled third-party notices",
+      "weights_license": null,
+      "supports": [
+        "Structure viewer and molecular formats"
+      ]
+    },
+    {
+      "id": "3dmol-license",
+      "title": "3Dmol.js license",
+      "url": "https://github.com/3dmol/3Dmol.js/blob/master/LICENSE",
+      "type": "official-license",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "master snapshot",
+      "code_license": "BSD-3-Clause plus GLmol/Three.js/jQuery notices",
+      "weights_license": null,
+      "supports": [
+        "Vendored browser library attribution"
+      ]
+    },
+    {
+      "id": "molstar",
+      "title": "Mol* official repository",
+      "url": "https://github.com/molstar/molstar",
+      "type": "official-repository",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "master snapshot",
+      "code_license": "MIT",
+      "weights_license": null,
+      "supports": [
+        "Alternative molecular visualization implementation"
+      ]
+    },
+    {
+      "id": "molstar-license",
+      "title": "Mol* license",
+      "url": "https://github.com/molstar/molstar/blob/master/LICENSE",
+      "type": "official-license",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "master snapshot",
+      "code_license": "MIT",
+      "weights_license": null,
+      "supports": [
+        "Alternative viewer license"
+      ]
+    },
+    {
+      "id": "pae-paper",
+      "title": "PAE Viewer author publication",
+      "url": "https://academic.oup.com/nar/article/51/W1/W404/7151339",
+      "type": "primary-research-paper",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "NAR 51 W1 W404 (2023)",
+      "code_license": null,
+      "weights_license": null,
+      "supports": [
+        "Interactive PAE/structure/sequence concept",
+        "author source repository"
+      ]
+    },
+    {
+      "id": "pae-code",
+      "title": "PAE Viewer author repository",
+      "url": "https://gitlab.gwdg.de/general-microbiology/pae-viewer",
+      "type": "author-repository",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "project page accessed; license text not retrieved",
+      "code_license": null,
+      "weights_license": null,
+      "supports": [
+        "Existing PAE visualization code; not vendored"
+      ]
+    },
+    {
+      "id": "rcsb-1ubq",
+      "title": "RCSB PDB 1UBQ",
+      "url": "https://www.rcsb.org/structure/1UBQ",
+      "type": "official-database-record",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "entry page snapshot",
+      "code_license": null,
+      "weights_license": null,
+      "supports": [
+        "Experimental ubiquitin reference structure provenance"
+      ]
+    },
+    {
+      "id": "rcsb-1crn",
+      "title": "RCSB PDB 1CRN",
+      "url": "https://www.rcsb.org/structure/1CRN",
+      "type": "official-database-record",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "entry page snapshot",
+      "code_license": null,
+      "weights_license": null,
+      "supports": [
+        "Experimental crambin reference structure provenance"
+      ]
+    },
+    {
+      "id": "afdb-p0cg47",
+      "title": "AlphaFold DB P0CG47",
+      "url": "https://alphafold.ebi.ac.uk/entry/P0CG47",
+      "type": "official-database-record",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "AF-P0CG47-F1 v6 per bundled metadata",
+      "code_license": null,
+      "weights_license": null,
+      "supports": [
+        "Precomputed public predicted structure and PAE provenance; not a new local prediction"
+      ]
+    },
+    {
+      "id": "af3-cli-v3.0.4",
+      "title": "AlphaFold 3 v3.0.4 CLI source",
+      "url": "https://github.com/google-deepmind/alphafold3/blob/v3.0.4/run_alphafold.py",
+      "type": "official-versioned-source",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "v3.0.4",
+      "code_license": "Apache-2.0",
+      "weights_license": null,
+      "supports": [
+        "Exact --num_diffusion_samples and --num_recycles flags used in example config"
+      ]
+    },
+    {
+      "id": "af2-cli-v2.3.2",
+      "title": "AlphaFold 2 v2.3.2 CLI source",
+      "url": "https://github.com/google-deepmind/alphafold/blob/v2.3.2/run_alphafold.py",
+      "type": "official-versioned-source",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "v2.3.2",
+      "code_license": "Apache-2.0",
+      "weights_license": null,
+      "supports": [
+        "Official AF2 CLI lacks a num_recycles flag",
+        "model config extension required to honor requested recycle count"
+      ]
+    },
+    {
+      "id": "af2-config-v2.3.2",
+      "title": "AlphaFold 2 v2.3.2 model configuration",
+      "url": "https://github.com/google-deepmind/alphafold/blob/v2.3.2/alphafold/model/config.py",
+      "type": "official-versioned-source",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "v2.3.2",
+      "code_license": "Apache-2.0",
+      "weights_license": null,
+      "supports": [
+        "Monomer data.common.num_recycle and model.num_recycle",
+        "Multimer model.num_recycle for included runner"
+      ]
+    },
+    {
+      "id": "af2-database-installation",
+      "title": "AlphaFold 2 v2.3.2 database installation",
+      "url": "https://github.com/google-deepmind/alphafold/blob/v2.3.2/README.md",
+      "type": "official-source",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "v2.3.2",
+      "code_license": null,
+      "weights_license": null,
+      "supports": [
+        "Official database families and download_all_data.sh",
+        "full/reduced and multimer database distinction"
+      ]
+    },
+    {
+      "id": "af3-database-installation",
+      "title": "AlphaFold 3 v3.0.4 database installation",
+      "url": "https://github.com/google-deepmind/alphafold3/blob/v3.0.4/docs/installation.md",
+      "type": "official-source",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "v3.0.4",
+      "code_license": null,
+      "weights_license": null,
+      "supports": [
+        "Exact official database filenames",
+        "Keep large databases outside image build context"
+      ]
+    },
+    {
+      "id": "af3-database-fetch",
+      "title": "AlphaFold 3 official database fetch script",
+      "url": "https://github.com/google-deepmind/alphafold3/blob/v3.0.4/fetch_databases.sh",
+      "type": "official-source",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "v3.0.4",
+      "code_license": null,
+      "weights_license": null,
+      "supports": [
+        "Official database download entry point"
+      ]
+    },
+    {
+      "id": "af3-data-pipeline-performance",
+      "title": "AlphaFold 3 CPU data preparation and inference split",
+      "url": "https://github.com/google-deepmind/alphafold3/blob/v3.0.4/docs/performance.md",
+      "type": "official-source",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "v3.0.4",
+      "code_license": null,
+      "weights_license": null,
+      "supports": [
+        "run_inference=false and run_data_pipeline=false",
+        "Per-chain search reuse for combination inputs"
+      ]
+    },
+    {
+      "id": "af3-database-cli-raw",
+      "title": "AlphaFold 3 actual v3.0.4 CLI initialization",
+      "url": "https://raw.githubusercontent.com/google-deepmind/alphafold3/v3.0.4/run_alphafold.py",
+      "type": "official-source",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "v3.0.4",
+      "code_license": null,
+      "weights_license": null,
+      "supports": [
+        "seqres_database_path exact name",
+        "All official paths including RNA resolved during DataPipelineConfig creation"
+      ]
+    },
+    {
+      "id": "colabfold-local-search",
+      "title": "ColabFold official local batch MSA workflow",
+      "url": "https://github.com/sokrypton/ColabFold/blob/main/README.md",
+      "type": "official-source",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "main accessed 2026-10-23; README 1.6.3",
+      "code_license": null,
+      "weights_license": null,
+      "supports": [
+        "Local colabfold_search followed by prediction",
+        "MMSEQS_NO_INDEX batch preparation distinction"
+      ]
+    },
+    {
+      "id": "colabfold-local-databases",
+      "title": "ColabFold setup_databases.sh",
+      "url": "https://github.com/sokrypton/ColabFold/blob/main/setup_databases.sh",
+      "type": "official-source",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "main accessed 2026-10-23",
+      "code_license": null,
+      "weights_license": null,
+      "supports": [
+        "uniref30_2302 and colabfold_envdb_202108 defaults",
+        "MMseqs database families and optional precomputed search index"
+      ]
+    },
+    {
+      "id": "aliyun-spot-resident",
+      "title": "Alibaba Cloud ECS spot instance behavior",
+      "url": "https://www.alibabacloud.com/help/en/ecs/spot-instance",
+      "type": "official-source",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "official documentation accessed 2026-10-23",
+      "code_license": null,
+      "weights_license": null,
+      "supports": [
+        "Spot preemption and interruption handling"
+      ]
+    },
+    {
+      "id": "aliyun-oss-integrity",
+      "title": "Alibaba Cloud OSS data verification",
+      "url": "https://www.alibabacloud.com/help/en/oss/user-guide/data-verification/",
+      "type": "official-source",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "official documentation accessed 2026-10-23",
+      "code_license": null,
+      "weights_license": null,
+      "supports": [
+        "ETag is not a universal MD5 checksum",
+        "Current application independently verifies SHA-256; OSS adapter is not implemented"
+      ]
+    },
+    {
+      "id": "systemd-worker-stop",
+      "title": "systemd process stopping procedure",
+      "url": "https://www.freedesktop.org/software/systemd/man/latest/systemd.kill.html",
+      "type": "official-source",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "official manual accessed 2026-10-23",
+      "code_license": null,
+      "weights_license": null,
+      "supports": [
+        "KillMode=mixed signals worker first, then terminates remaining process group after timeout"
+      ]
+    },
+    {
+      "id": "af3-chain-search",
+      "title": "AF3 per-chain raw MSA and template search",
+      "url": "https://github.com/google-deepmind/alphafold3/blob/v3.0.4/src/alphafold3/data/pipeline.py",
+      "type": "official-source",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "v3.0.4",
+      "code_license": null,
+      "weights_license": null,
+      "supports": [
+        "Sequence-dependent searches, UniProt deduplicate=False, in-process cache"
+      ]
+    },
+    {
+      "id": "af3-msa-pairing",
+      "title": "AF3 species-based MSA pairing",
+      "url": "https://github.com/google-deepmind/alphafold3/blob/v3.0.4/src/alphafold3/model/msa_pairing.py",
+      "type": "official-source",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "v3.0.4",
+      "code_license": null,
+      "weights_license": null,
+      "supports": [
+        "Pairing is recomputed for the complete complex"
+      ]
+    },
+    {
+      "id": "af3-input-identity",
+      "title": "AF3 chain identity and input serialization",
+      "url": "https://github.com/google-deepmind/alphafold3/blob/v3.0.4/src/alphafold3/common/folding_input.py",
+      "type": "official-source",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "v3.0.4",
+      "code_license": null,
+      "weights_license": null,
+      "supports": [
+        "Full-chain hash and grouped IDs"
+      ]
+    },
+    {
+      "id": "af3-msa-features",
+      "title": "AF3 complete-complex feature construction",
+      "url": "https://github.com/google-deepmind/alphafold3/blob/v3.0.4/src/alphafold3/model/features.py",
+      "type": "official-source",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "v3.0.4",
+      "code_license": null,
+      "weights_license": null,
+      "supports": [
+        "Raw chain MSA is not a reusable paired feature tensor"
+      ]
+    },
+    {
+      "id": "ijson-pypi",
+      "title": "ijson official package and iterative parsing documentation",
+      "url": "https://pypi.org/project/ijson/",
+      "type": "official-package-documentation",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "3.6.0 (released 2026-10-12); local tested runtime 3.6.0/yajl2_c",
+      "code_license": "BSD-3-Clause AND ISC",
+      "weights_license": null,
+      "supports": [
+        "Streaming JSON events without constructing the entire input tree",
+        "Bounded confidence/PAE preprocessing; no model throughput claims"
+      ]
+    },
+    {
+      "id": "mmseqs2-gpu-release",
+      "title": "MMseqs2 Release 18-8cc5c",
+      "url": "https://github.com/soedinglab/MMseqs2/releases/tag/18-8cc5c",
+      "type": "official-release",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "18-8cc5c",
+      "code_license": null,
+      "weights_license": null,
+      "supports": [
+        "Observed latest release on 2026-10-23, not a locally installed runtime claim"
+      ]
+    },
+    {
+      "id": "mmseqs2-gpu-guide",
+      "title": "MMseqs2 GPU search and server",
+      "url": "https://github.com/soedinglab/MMseqs2/wiki#gpu-accelerated-search",
+      "type": "official-documentation",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "wiki accessed 2026-10-23",
+      "code_license": null,
+      "weights_license": null,
+      "supports": [
+        "GPU database layout, CUDA visible devices, direct search versus persistent server"
+      ]
+    },
+    {
+      "id": "colabfold-163-search",
+      "title": "ColabFold v1.6.3 local search",
+      "url": "https://github.com/sokrypton/ColabFold/blob/v1.6.3/colabfold/mmseqs/search.py",
+      "type": "official-code",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "v1.6.3",
+      "code_license": null,
+      "weights_license": null,
+      "supports": [
+        "GPU/CPU local search flags and AF3 output options"
+      ]
+    },
+    {
+      "id": "colabfold-163-databases",
+      "title": "ColabFold v1.6.3 database preparation",
+      "url": "https://github.com/sokrypton/ColabFold/blob/v1.6.3/setup_databases.sh",
+      "type": "official-code",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "v1.6.3",
+      "code_license": null,
+      "weights_license": null,
+      "supports": [
+        "Expandable database families and GPU-compatible database preparation"
+      ]
+    },
+    {
+      "id": "mmseqs2-gpu-paper-2025",
+      "title": "GPU-accelerated homology search with MMseqs2",
+      "url": "https://www.nature.com/articles/s41592-025-02819-8",
+      "type": "primary-research",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "published 2025-09-18",
+      "code_license": null,
+      "weights_license": null,
+      "supports": [
+        "Workload-specific CPU/GPU comparisons; search-stage versus end-to-end timing; hardware/database conditions"
+      ]
+    },
+    {
+      "id": "msa-search-nim-2026",
+      "title": "NVIDIA MSA-Search NIM overview",
+      "url": "https://docs.nvidia.com/nim/bionemo/msa-search/latest/overview.html",
+      "type": "official-documentation",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "docs last updated 2026-08-06",
+      "code_license": null,
+      "weights_license": null,
+      "supports": [
+        "Industry service option, paired and template endpoints; not connected in this project"
+      ]
+    },
+    {
+      "id": "msa-search-nim-batch",
+      "title": "NVIDIA MSA-Search experimental batch API",
+      "url": "https://docs.nvidia.com/nim/bionemo/msa-search/latest/batching.html",
+      "type": "official-documentation",
+      "accessed": "2026-10-23",
+      "version_or_snapshot": "accessed 2026-10-23",
+      "code_license": null,
+      "weights_license": null,
+      "supports": [
+        "Experimental batch sequence/complex inputs with per-item status; not deployed"
+      ]
+    }
+  ]
+}

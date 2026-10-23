@@ -1,0 +1,24 @@
+# Linux GPU node template. Install as /etc/systemd/system/foldspace-worker@.service.
+# Copy and edit the matching environment file; one service instance per GPU slot.
+[Unit]
+Description=Foldspace resident GPU worker %i
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=foldspace
+WorkingDirectory=/srv/foldspace
+EnvironmentFile=/etc/foldspace/workers/%i.env
+ExecStart=/opt/foldspace/bin/python /srv/foldspace/scripts/worker_node.py --url ${FOLDSPACE_CONTROLLER_URL} --worker-id %i --token-env PS_WORKER_TOKEN --engine alphafold3 --runtime-version ${FOLDSPACE_RUNTIME_VERSION} --gpu-devices ${FOLDSPACE_GPU_DEVICES} --samples ${FOLDSPACE_SAMPLES} --recycles ${FOLDSPACE_RECYCLES} --work-dir /srv/foldspace-workers/%i --resident-command ${FOLDSPACE_RESIDENT_COMMAND}
+Restart=on-failure
+RestartSec=10
+KillSignal=SIGTERM
+# Signal the worker first so it can drain; kill the whole group after timeout.
+KillMode=mixed
+TimeoutStopSec=300
+NoNewPrivileges=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 1,
+  "description": "Administrator examples for staged campaigns. Edit actual executable/project/database/weight paths and versions, then export with scripts/staged_env.py. No monolithic COMMAND variables are required for campaigns. Installed model runtimes, weights and complete databases remain required.",
+  "placeholders": [
+    "fasta",
+    "input_json",
+    "job_json",
+    "profile_json",
+    "output_dir",
+    "prepared_input",
+    "prepared_dir",
+    "seed",
+    "num_samples",
+    "num_recycles",
+    "db_root"
+  ],
+  "profiles": {
+    "reference": {
+      "databaseProfile": "reference",
+      "environment": {}
+    },
+    "af3-local-staged": {
+      "databaseProfile": "af3-protein-local",
+      "environment": {
+        "PROTEIN_STUDIO_DATABASE_CONFIG": "/Users/luopeng/Documents/GitHub/protein-studio/config/databases.local.json",
+        "PROTEIN_STUDIO_CPU_PREP_WORKERS": "2",
+        "PROTEIN_STUDIO_GPU_WORKERS": "1",
+        "PROTEIN_STUDIO_CPU_VALIDATE_WORKERS": "1",
+        "PROTEIN_STUDIO_GPU_GROUPS_JSON": "[[\"0\"]]",
+        "PROTEIN_STUDIO_PREPARE_TIMEOUT_SECONDS": "86400",
+        "PROTEIN_STUDIO_TIMEOUT_SECONDS": "7200",
+        "PROTEIN_STUDIO_ALPHAFOLD3_PREPARE_COMMAND": [
+          "/opt/alphafold3/venv/bin/python",
+          "/Users/luopeng/Documents/GitHub/protein-studio/scripts/af3_staged_runner.py",
+          "--stage",
+          "prepare",
+          "--input",
+          "{input_json}",
+          "--output-dir",
+          "{output_dir}",
+          "--profile-json",
+          "{profile_json}",
+          "--alphafold-script",
+          "/opt/alphafold3/run_alphafold.py"
+        ],
+        "PROTEIN_STUDIO_ALPHAFOLD3_PREDICT_COMMAND": [
+          "/opt/alphafold3/venv/bin/python",
+          "/Users/luopeng/Documents/GitHub/protein-studio/scripts/af3_staged_runner.py",
+          "--stage",
+          "predict",
+          "--input",
+          "{prepared_input}",
+          "--output-dir",
+          "{output_dir}",
+          "--profile-json",
+          "{profile_json}",
+          "--job-json",
+          "{job_json}",
+          "--alphafold-script",
+          "/opt/alphafold3/run_alphafold.py",
+          "--",
+          "--model_dir=/srv/protein-models/alphafold3",
+          "--jax_compilation_cache_dir=/srv/protein-cache/jax-af3"
+        ],
+        "PROTEIN_STUDIO_ALPHAFOLD3_VERSION": "REPLACE_WITH_INSTALLED_VERSION_AND_COMMIT"
+      }
+    },
+    "colabfold-local-staged": {
+      "databaseProfile": "colabfold-local",
+      "environment": {
+        "PROTEIN_STUDIO_DATABASE_CONFIG": "/Users/luopeng/Documents/GitHub/protein-studio/config/databases.local.json",
+        "PROTEIN_STUDIO_CPU_PREP_WORKERS": "2",
+        "PROTEIN_STUDIO_GPU_WORKERS": "1",
+        "PROTEIN_STUDIO_CPU_VALIDATE_WORKERS": "1",
+        "PROTEIN_STUDIO_GPU_GROUPS_JSON": "[[\"0\"]]",
+        "PROTEIN_STUDIO_PREPARE_TIMEOUT_SECONDS": "86400",
+        "PROTEIN_STUDIO_TIMEOUT_SECONDS": "7200",
+        "PROTEIN_STUDIO_COLABFOLD_PREPARE_COMMAND": [
+          "/opt/colabfold/bin/python",
+          "/Users/luopeng/Documents/GitHub/protein-studio/scripts/colabfold_staged_runner.py",
+          "--stage",
+          "prepare",
+          "--input",
+          "{fasta}",
+          "--output-dir",
+          "{output_dir}",
+          "--profile-json",
+          "{profile_json}",
+          "--executable",
+          "/opt/colabfold/bin/colabfold_search"
+        ],
+        "PROTEIN_STUDIO_COLABFOLD_PREDICT_COMMAND": [
+          "/opt/colabfold/bin/python",
+          "/Users/luopeng/Documents/GitHub/protein-studio/scripts/colabfold_staged_runner.py",
+          "--stage",
+          "predict",
+          "--input",
+          "{prepared_dir}",
+          "--output-dir",
+          "{output_dir}",
+          "--profile-json",
+          "{profile_json}",
+          "--job-json",
+          "{job_json}",
+          "--seed",
+          "{seed}",
+          "--executable",
+          "/opt/colabfold/bin/colabfold_batch",
+          "--model-dir",
+          "/srv/protein-models/colabfold"
+        ],
+        "PROTEIN_STUDIO_COLABFOLD_VERSION": "REPLACE_WITH_INSTALLED_VERSION_AND_COMMIT",
+        "JAX_COMPILATION_CACHE_DIR": "/srv/protein-cache/jax-colabfold"
+      }
+    }
+  }
+}

@@ -1,0 +1,18 @@
+/* Read-only checks of the user's running app. Block all browser API mutations. */
+const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path');
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
+const base=process.env.STUDIO_URL||'http://127.0.0.1:8765',out=path.resolve(__dirname,'../artifacts');
+const read=async p=>{const r=await fetch(base+p);assert.ok(r.ok);return r.json();};
+const ids=rows=>rows.map(r=>r.id).sort();
+(async()=>{let browser;const checks=[],errors=[],blocked=[];try{
+ const before={jobs:ids(await read('/api/jobs')),campaigns:ids(await read('/api/campaigns'))};
+ browser=await chromium.launch({executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:true,args:['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader']});const page=await browser.newPage({viewport:{width:1440,height:1040}});page.on('pageerror',e=>errors.push(e.message));
+ await page.route('**/api/**',route=>{if(route.request().method()!=='GET'){blocked.push(route.request().method()+' '+route.request().url());return route.abort();}return route.continue();});
+ await page.goto(base+'/?ui=rich#studio',{waitUntil:'domcontentloaded'});await page.waitForSelector('#viewer-loading.hidden',{state:'attached'});await page.screenshot({path:path.join(out,'workspace-ux-live-desktop.png'),fullPage:true});checks.push('Live completed structure, confidence, PAE and residue panels render with the updated UI');
+ await page.locator('#new-job-button').click();await page.locator('[data-engine="alphafold3"]').click();await page.waitForSelector('#open-batch-route');assert.match(await page.locator('#engine-caption').textContent(),/常驻/);assert.equal(await page.locator('#submit-job-button').isDisabled(),true);await page.screenshot({path:path.join(out,'workspace-ux-live-entry.png')});await page.keyboard.press('Escape');checks.push('Actual worker-mode configuration routes AF3 to batch submission without claiming a missing local runner can be used');
+ for(const view of ['jobs','campaigns','databases','cluster','storage','pipeline','sources','environment']){await page.locator(`[data-view="${view}"]`).click();assert.equal(await page.locator(`[data-view="${view}"]`).getAttribute('aria-current'),'page');assert.ok(await page.locator('#view-container').textContent());}
+ checks.push('All nine navigation destinations remain reachable with current-page semantics');
+ await page.locator('[data-view="studio"]').click();await page.waitForSelector('#viewer-loading.hidden',{state:'attached'});await page.setViewportSize({width:390,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.screenshot({path:path.join(out,'workspace-ux-live-mobile.png'),fullPage:true});checks.push('Live 390px structure workspace fits the page and keeps labeled navigation');
+ const after={jobs:ids(await read('/api/jobs')),campaigns:ids(await read('/api/campaigns'))};assert.deepEqual(after,before);assert.deepEqual(blocked,[]);assert.deepEqual(errors,[]);checks.push('Existing job/campaign IDs unchanged; zero mutation requests and zero page runtime errors');
+ const report={status:'passed',count:checks.length,checks,errors,blocked,before,after,scope:'Read-only local app with existing reference workers. No deployment, native MSA or GPU inference.'};await fs.writeFile(path.join(out,'workspace-ux-live-verification.json'),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report,null,2));
+}finally{await browser?.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

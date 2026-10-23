@@ -1,0 +1,50 @@
+{
+  "purpose": "Public scientific artifacts for replay only; no new prediction is performed.",
+  "files": [
+    {
+      "file": "1UBQ.pdb",
+      "sourceUrl": "https://files.rcsb.org/download/1UBQ.pdb",
+      "retrievedAt": "2026-10-23",
+      "sha256": "d4a6812d8951cf6594e6a0763f089e35f5a80b62acb3c117b2c5565228a7b161",
+      "bytes": 78570,
+      "type": "experimental_structure",
+      "databaseVersion": null
+    },
+    {
+      "file": "1CRN.pdb",
+      "sourceUrl": "https://files.rcsb.org/download/1CRN.pdb",
+      "retrievedAt": "2026-10-23",
+      "sha256": "42199a30a0701864a2a5cc76cd7f35cc544cd0e65fbcf63e03c166543249b811",
+      "bytes": 49491,
+      "type": "experimental_structure",
+      "databaseVersion": null
+    },
+    {
+      "file": "P0CG47_metadata.json",
+      "sourceUrl": "https://alphafold.ebi.ac.uk/api/prediction/P0CG47",
+      "retrievedAt": "2026-10-23",
+      "sha256": "eb8e37f3449ec130c62b754a29d0d7c193e811cc048626cfa212d6b8ee714ac4",
+      "bytes": 2473,
+      "type": "historical_prediction_or_metadata",
+      "databaseVersion": 6
+    },
+    {
+      "file": "P0CG47.pdb",
+      "sourceUrl": "https://alphafold.ebi.ac.uk/files/AF-P0CG47-F1-model_v6.pdb",
+      "retrievedAt": "2026-10-23",
+      "sha256": "1b604b94c023cca15ae70b07cf439bf0f5314271d25ee3374072f9c7d20b2f6b",
+      "bytes": 151955,
+      "type": "historical_prediction_or_metadata",
+      "databaseVersion": 6
+    },
+    {
+      "file": "P0CG47_pae.json",
+      "sourceUrl": "https://alphafold.ebi.ac.uk/files/AF-P0CG47-F1-predicted_aligned_error_v6.json",
+      "retrievedAt": "2026-10-23",
+      "sha256": "0c497438ce1fedb974298d48a49803cf8c50ca003cf598606de7e5dcd6caf4c4",
+      "bytes": 129732,
+      "type": "historical_prediction_or_metadata",
+      "databaseVersion": 6
+    }
+  ]
+}

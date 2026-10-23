@@ -1,0 +1,33 @@
+{
+  "name": "foldspace-protein-studio",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local protein structure prediction workflow and scientific visualization workbench",
+  "scripts": {
+    "start": "python3 -m backend.server",
+    "check": "node --check web/app.js && node --check web/campaigns.js && node --check web/cluster.js && node --check web/cluster-visuals.js && node --check web/preparation-resources.js && node --check web/storage.js && node --check web/pae-viewer.js && node --check web/msa-view.js",
+    "test:ui": "node tests/browser_smoke.cjs",
+    "test:campaign-ui": "node tests/browser_campaign.cjs",
+    "test:campaign-client": "node tests/campaign_client.cjs",
+    "test:cluster-ui": "node tests/browser_cluster.cjs",
+    "test:hybrid-live": "node tests/browser_hybrid_live.cjs",
+    "test:campaign-inspect": "node tests/browser_campaign_inspect.cjs",
+    "test:rich-live": "node tests/browser_rich_live.cjs",
+    "test:chain-reuse-ui": "node tests/browser_chain_reuse.cjs",
+    "test:pipeline-live": "node tests/browser_pipeline_live.cjs",
+    "test:screening-ui": "node tests/browser_screening_input.cjs",
+    "test:preparation-ui": "node tests/browser_preparation_resources.cjs",
+    "test:storage-ui": "node tests/browser_storage.cjs",
+    "test:pae-ui": "node tests/browser_pae_lazy.cjs",
+    "test:pae-http": "node tests/browser_pae_http.cjs",
+    "test:msa-ui": "node tests/browser_msa_observation.cjs",
+    "test:msa-http": "node tests/browser_msa_http.cjs",
+    "test:mmseqs-ui": "node tests/browser_msa_strategy.cjs",
+    "test:mmseqs-http": "node tests/browser_mmseqs_http.cjs",
+    "test:workspace-ux": "node tests/browser_studio_ux.cjs && node tests/browser_campaign_ux.cjs && node tests/browser_operations_ux.cjs && node tests/browser_workspace_recovery_ux.cjs && node tests/browser_confidence_color_ux.cjs",
+    "test:workspace-ux-live": "node tests/browser_workspace_ux_live.cjs"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
+  }
+}

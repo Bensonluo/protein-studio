@@ -1,0 +1,455 @@
+{
+  "schemaVersion": 1,
+  "controllerURL": "https://foldspace-controller.example.org",
+  "description": "Edit installation paths, version, controller URL and inherited token environment variable names before launch. This file is a plan, not evidence of live GPUs. One native AF3 resident per GPU processes many targets/batches.",
+  "workers": [
+    {
+      "id": "local-gpu-00",
+      "tokenEnv": "PS_LOCAL_GPU_00_TOKEN",
+      "engine": "alphafold3",
+      "runtimeVersion": "AF3-v3.0.4-REPLACE_COMMIT",
+      "gpuDevices": [
+        "0"
+      ],
+      "samples": 5,
+      "recycles": 10,
+      "workDir": "/srv/foldspace-workers/local-gpu-00",
+      "residentCommand": [
+        "/opt/alphafold3/venv/bin/python",
+        "/srv/foldspace/scripts/resident_runner.py",
+        "--engine",
+        "alphafold3",
+        "--af3-script",
+        "/opt/alphafold3/run_alphafold.py",
+        "--model-dir",
+        "/srv/protein-models/alphafold3",
+        "--model-version",
+        "AF3-v3.0.4-REPLACE_COMMIT",
+        "--num-samples",
+        "5",
+        "--num-recycles",
+        "10"
+      ]
+    },
+    {
+      "id": "local-gpu-01",
+      "tokenEnv": "PS_LOCAL_GPU_01_TOKEN",
+      "engine": "alphafold3",
+      "runtimeVersion": "AF3-v3.0.4-REPLACE_COMMIT",
+      "gpuDevices": [
+        "1"
+      ],
+      "samples": 5,
+      "recycles": 10,
+      "workDir": "/srv/foldspace-workers/local-gpu-01",
+      "residentCommand": [
+        "/opt/alphafold3/venv/bin/python",
+        "/srv/foldspace/scripts/resident_runner.py",
+        "--engine",
+        "alphafold3",
+        "--af3-script",
+        "/opt/alphafold3/run_alphafold.py",
+        "--model-dir",
+        "/srv/protein-models/alphafold3",
+        "--model-version",
+        "AF3-v3.0.4-REPLACE_COMMIT",
+        "--num-samples",
+        "5",
+        "--num-recycles",
+        "10"
+      ]
+    },
+    {
+      "id": "local-gpu-02",
+      "tokenEnv": "PS_LOCAL_GPU_02_TOKEN",
+      "engine": "alphafold3",
+      "runtimeVersion": "AF3-v3.0.4-REPLACE_COMMIT",
+      "gpuDevices": [
+        "2"
+      ],
+      "samples": 5,
+      "recycles": 10,
+      "workDir": "/srv/foldspace-workers/local-gpu-02",
+      "residentCommand": [
+        "/opt/alphafold3/venv/bin/python",
+        "/srv/foldspace/scripts/resident_runner.py",
+        "--engine",
+        "alphafold3",
+        "--af3-script",
+        "/opt/alphafold3/run_alphafold.py",
+        "--model-dir",
+        "/srv/protein-models/alphafold3",
+        "--model-version",
+        "AF3-v3.0.4-REPLACE_COMMIT",
+        "--num-samples",
+        "5",
+        "--num-recycles",
+        "10"
+      ]
+    },
+    {
+      "id": "local-gpu-03",
+      "tokenEnv": "PS_LOCAL_GPU_03_TOKEN",
+      "engine": "alphafold3",
+      "runtimeVersion": "AF3-v3.0.4-REPLACE_COMMIT",
+      "gpuDevices": [
+        "3"
+      ],
+      "samples": 5,
+      "recycles": 10,
+      "workDir": "/srv/foldspace-workers/local-gpu-03",
+      "residentCommand": [
+        "/opt/alphafold3/venv/bin/python",
+        "/srv/foldspace/scripts/resident_runner.py",
+        "--engine",
+        "alphafold3",
+        "--af3-script",
+        "/opt/alphafold3/run_alphafold.py",
+        "--model-dir",
+        "/srv/protein-models/alphafold3",
+        "--model-version",
+        "AF3-v3.0.4-REPLACE_COMMIT",
+        "--num-samples",
+        "5",
+        "--num-recycles",
+        "10"
+      ]
+    },
+    {
+      "id": "local-gpu-04",
+      "tokenEnv": "PS_LOCAL_GPU_04_TOKEN",
+      "engine": "alphafold3",
+      "runtimeVersion": "AF3-v3.0.4-REPLACE_COMMIT",
+      "gpuDevices": [
+        "4"
+      ],
+      "samples": 5,
+      "recycles": 10,
+      "workDir": "/srv/foldspace-workers/local-gpu-04",
+      "residentCommand": [
+        "/opt/alphafold3/venv/bin/python",
+        "/srv/foldspace/scripts/resident_runner.py",
+        "--engine",
+        "alphafold3",
+        "--af3-script",
+        "/opt/alphafold3/run_alphafold.py",
+        "--model-dir",
+        "/srv/protein-models/alphafold3",
+        "--model-version",
+        "AF3-v3.0.4-REPLACE_COMMIT",
+        "--num-samples",
+        "5",
+        "--num-recycles",
+        "10"
+      ]
+    },
+    {
+      "id": "local-gpu-05",
+      "tokenEnv": "PS_LOCAL_GPU_05_TOKEN",
+      "engine": "alphafold3",
+      "runtimeVersion": "AF3-v3.0.4-REPLACE_COMMIT",
+      "gpuDevices": [
+        "5"
+      ],
+      "samples": 5,
+      "recycles": 10,
+      "workDir": "/srv/foldspace-workers/local-gpu-05",
+      "residentCommand": [
+        "/opt/alphafold3/venv/bin/python",
+        "/srv/foldspace/scripts/resident_runner.py",
+        "--engine",
+        "alphafold3",
+        "--af3-script",
+        "/opt/alphafold3/run_alphafold.py",
+        "--model-dir",
+        "/srv/protein-models/alphafold3",
+        "--model-version",
+        "AF3-v3.0.4-REPLACE_COMMIT",
+        "--num-samples",
+        "5",
+        "--num-recycles",
+        "10"
+      ]
+    },
+    {
+      "id": "local-gpu-06",
+      "tokenEnv": "PS_LOCAL_GPU_06_TOKEN",
+      "engine": "alphafold3",
+      "runtimeVersion": "AF3-v3.0.4-REPLACE_COMMIT",
+      "gpuDevices": [
+        "6"
+      ],
+      "samples": 5,
+      "recycles": 10,
+      "workDir": "/srv/foldspace-workers/local-gpu-06",
+      "residentCommand": [
+        "/opt/alphafold3/venv/bin/python",
+        "/srv/foldspace/scripts/resident_runner.py",
+        "--engine",
+        "alphafold3",
+        "--af3-script",
+        "/opt/alphafold3/run_alphafold.py",
+        "--model-dir",
+        "/srv/protein-models/alphafold3",
+        "--model-version",
+        "AF3-v3.0.4-REPLACE_COMMIT",
+        "--num-samples",
+        "5",
+        "--num-recycles",
+        "10"
+      ]
+    },
+    {
+      "id": "local-gpu-07",
+      "tokenEnv": "PS_LOCAL_GPU_07_TOKEN",
+      "engine": "alphafold3",
+      "runtimeVersion": "AF3-v3.0.4-REPLACE_COMMIT",
+      "gpuDevices": [
+        "7"
+      ],
+      "samples": 5,
+      "recycles": 10,
+      "workDir": "/srv/foldspace-workers/local-gpu-07",
+      "residentCommand": [
+        "/opt/alphafold3/venv/bin/python",
+        "/srv/foldspace/scripts/resident_runner.py",
+        "--engine",
+        "alphafold3",
+        "--af3-script",
+        "/opt/alphafold3/run_alphafold.py",
+        "--model-dir",
+        "/srv/protein-models/alphafold3",
+        "--model-version",
+        "AF3-v3.0.4-REPLACE_COMMIT",
+        "--num-samples",
+        "5",
+        "--num-recycles",
+        "10"
+      ]
+    },
+    {
+      "id": "local-gpu-08",
+      "tokenEnv": "PS_LOCAL_GPU_08_TOKEN",
+      "engine": "alphafold3",
+      "runtimeVersion": "AF3-v3.0.4-REPLACE_COMMIT",
+      "gpuDevices": [
+        "8"
+      ],
+      "samples": 5,
+      "recycles": 10,
+      "workDir": "/srv/foldspace-workers/local-gpu-08",
+      "residentCommand": [
+        "/opt/alphafold3/venv/bin/python",
+        "/srv/foldspace/scripts/resident_runner.py",
+        "--engine",
+        "alphafold3",
+        "--af3-script",
+        "/opt/alphafold3/run_alphafold.py",
+        "--model-dir",
+        "/srv/protein-models/alphafold3",
+        "--model-version",
+        "AF3-v3.0.4-REPLACE_COMMIT",
+        "--num-samples",
+        "5",
+        "--num-recycles",
+        "10"
+      ]
+    },
+    {
+      "id": "local-gpu-09",
+      "tokenEnv": "PS_LOCAL_GPU_09_TOKEN",
+      "engine": "alphafold3",
+      "runtimeVersion": "AF3-v3.0.4-REPLACE_COMMIT",
+      "gpuDevices": [
+        "9"
+      ],
+      "samples": 5,
+      "recycles": 10,
+      "workDir": "/srv/foldspace-workers/local-gpu-09",
+      "residentCommand": [
+        "/opt/alphafold3/venv/bin/python",
+        "/srv/foldspace/scripts/resident_runner.py",
+        "--engine",
+        "alphafold3",
+        "--af3-script",
+        "/opt/alphafold3/run_alphafold.py",
+        "--model-dir",
+        "/srv/protein-models/alphafold3",
+        "--model-version",
+        "AF3-v3.0.4-REPLACE_COMMIT",
+        "--num-samples",
+        "5",
+        "--num-recycles",
+        "10"
+      ]
+    },
+    {
+      "id": "local-gpu-10",
+      "tokenEnv": "PS_LOCAL_GPU_10_TOKEN",
+      "engine": "alphafold3",
+      "runtimeVersion": "AF3-v3.0.4-REPLACE_COMMIT",
+      "gpuDevices": [
+        "10"
+      ],
+      "samples": 5,
+      "recycles": 10,
+      "workDir": "/srv/foldspace-workers/local-gpu-10",
+      "residentCommand": [
+        "/opt/alphafold3/venv/bin/python",
+        "/srv/foldspace/scripts/resident_runner.py",
+        "--engine",
+        "alphafold3",
+        "--af3-script",
+        "/opt/alphafold3/run_alphafold.py",
+        "--model-dir",
+        "/srv/protein-models/alphafold3",
+        "--model-version",
+        "AF3-v3.0.4-REPLACE_COMMIT",
+        "--num-samples",
+        "5",
+        "--num-recycles",
+        "10"
+      ]
+    },
+    {
+      "id": "local-gpu-11",
+      "tokenEnv": "PS_LOCAL_GPU_11_TOKEN",
+      "engine": "alphafold3",
+      "runtimeVersion": "AF3-v3.0.4-REPLACE_COMMIT",
+      "gpuDevices": [
+        "11"
+      ],
+      "samples": 5,
+      "recycles": 10,
+      "workDir": "/srv/foldspace-workers/local-gpu-11",
+      "residentCommand": [
+        "/opt/alphafold3/venv/bin/python",
+        "/srv/foldspace/scripts/resident_runner.py",
+        "--engine",
+        "alphafold3",
+        "--af3-script",
+        "/opt/alphafold3/run_alphafold.py",
+        "--model-dir",
+        "/srv/protein-models/alphafold3",
+        "--model-version",
+        "AF3-v3.0.4-REPLACE_COMMIT",
+        "--num-samples",
+        "5",
+        "--num-recycles",
+        "10"
+      ]
+    },
+    {
+      "id": "local-gpu-12",
+      "tokenEnv": "PS_LOCAL_GPU_12_TOKEN",
+      "engine": "alphafold3",
+      "runtimeVersion": "AF3-v3.0.4-REPLACE_COMMIT",
+      "gpuDevices": [
+        "12"
+      ],
+      "samples": 5,
+      "recycles": 10,
+      "workDir": "/srv/foldspace-workers/local-gpu-12",
+      "residentCommand": [
+        "/opt/alphafold3/venv/bin/python",
+        "/srv/foldspace/scripts/resident_runner.py",
+        "--engine",
+        "alphafold3",
+        "--af3-script",
+        "/opt/alphafold3/run_alphafold.py",
+        "--model-dir",
+        "/srv/protein-models/alphafold3",
+        "--model-version",
+        "AF3-v3.0.4-REPLACE_COMMIT",
+        "--num-samples",
+        "5",
+        "--num-recycles",
+        "10"
+      ]
+    },
+    {
+      "id": "local-gpu-13",
+      "tokenEnv": "PS_LOCAL_GPU_13_TOKEN",
+      "engine": "alphafold3",
+      "runtimeVersion": "AF3-v3.0.4-REPLACE_COMMIT",
+      "gpuDevices": [
+        "13"
+      ],
+      "samples": 5,
+      "recycles": 10,
+      "workDir": "/srv/foldspace-workers/local-gpu-13",
+      "residentCommand": [
+        "/opt/alphafold3/venv/bin/python",
+        "/srv/foldspace/scripts/resident_runner.py",
+        "--engine",
+        "alphafold3",
+        "--af3-script",
+        "/opt/alphafold3/run_alphafold.py",
+        "--model-dir",
+        "/srv/protein-models/alphafold3",
+        "--model-version",
+        "AF3-v3.0.4-REPLACE_COMMIT",
+        "--num-samples",
+        "5",
+        "--num-recycles",
+        "10"
+      ]
+    },
+    {
+      "id": "local-gpu-14",
+      "tokenEnv": "PS_LOCAL_GPU_14_TOKEN",
+      "engine": "alphafold3",
+      "runtimeVersion": "AF3-v3.0.4-REPLACE_COMMIT",
+      "gpuDevices": [
+        "14"
+      ],
+      "samples": 5,
+      "recycles": 10,
+      "workDir": "/srv/foldspace-workers/local-gpu-14",
+      "residentCommand": [
+        "/opt/alphafold3/venv/bin/python",
+        "/srv/foldspace/scripts/resident_runner.py",
+        "--engine",
+        "alphafold3",
+        "--af3-script",
+        "/opt/alphafold3/run_alphafold.py",
+        "--model-dir",
+        "/srv/protein-models/alphafold3",
+        "--model-version",
+        "AF3-v3.0.4-REPLACE_COMMIT",
+        "--num-samples",
+        "5",
+        "--num-recycles",
+        "10"
+      ]
+    },
+    {
+      "id": "local-gpu-15",
+      "tokenEnv": "PS_LOCAL_GPU_15_TOKEN",
+      "engine": "alphafold3",
+      "runtimeVersion": "AF3-v3.0.4-REPLACE_COMMIT",
+      "gpuDevices": [
+        "15"
+      ],
+      "samples": 5,
+      "recycles": 10,
+      "workDir": "/srv/foldspace-workers/local-gpu-15",
+      "residentCommand": [
+        "/opt/alphafold3/venv/bin/python",
+        "/srv/foldspace/scripts/resident_runner.py",
+        "--engine",
+        "alphafold3",
+        "--af3-script",
+        "/opt/alphafold3/run_alphafold.py",
+        "--model-dir",
+        "/srv/protein-models/alphafold3",
+        "--model-version",
+        "AF3-v3.0.4-REPLACE_COMMIT",
+        "--num-samples",
+        "5",
+        "--num-recycles",
+        "10"
+      ]
+    }
+  ]
+}

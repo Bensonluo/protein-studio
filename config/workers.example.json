@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "leaseSeconds": 120,
+  "batchTargets": 8,
+  "batchResidues": 8192,
+  "maxBundleBytes": 268435456,
+  "maxExpandedBytes": 1073741824,
+  "planned": {
+    "localGpuCards": 16
+  },
+  "workers": [
+    {
+      "id": "local-demo",
+      "name": "Local fixture worker",
+      "tokenEnv": "PS_LOCAL_DEMO_TOKEN",
+      "location": "local",
+      "mode": "fixture",
+      "engines": [
+        "reference"
+      ],
+      "maxResidues": 5000
+    },
+    {
+      "id": "aliyun-demo",
+      "name": "Aliyun-labelled fixture worker",
+      "tokenEnv": "PS_ALI_DEMO_TOKEN",
+      "location": "aliyun",
+      "mode": "fixture",
+      "engines": [
+        "reference"
+      ],
+      "maxResidues": 5000
+    }
+  ]
+}

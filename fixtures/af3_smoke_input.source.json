@@ -1,0 +1,7 @@
+{
+  "source": "Bundled P0CG47_metadata.json sequence, residues 1–76",
+  "sourceURL": "https://alphafold.ebi.ac.uk/files/AF-P0CG47-F1-model_v6.pdb",
+  "inputResidues": 76,
+  "purpose": "Sequence-only fresh AF3 input. No MSA, template, coordinates or confidence copied from historical prediction.",
+  "resultIsNotSupplied": true
+}

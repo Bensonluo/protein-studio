@@ -1,0 +1,22 @@
+services:
+  studio:
+    build: .
+    image: protein-studio:local
+    init: true
+    ports:
+      - "127.0.0.1:${PROTEIN_STUDIO_PORT:-8765}:8765"
+    environment:
+      PROTEIN_STUDIO_HOST: "0.0.0.0"
+      PROTEIN_STUDIO_PORT: "8765"
+      PROTEIN_STUDIO_DATA_DIR: "/app/data"
+      PROTEIN_STUDIO_WORKERS: "1"
+    volumes:
+      - studio-data:/app/data
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+volumes:
+  studio-data:

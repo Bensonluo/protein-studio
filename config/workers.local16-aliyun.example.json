@@ -1,0 +1,201 @@
+{
+  "schemaVersion": 1,
+  "description": "Registry template only: 16 local GPU slots and one optional Aliyun slot example. No instances are created or marked online. Set validated per-hardware maxResidues and unique token environment values; cloud worker count is not a sizing recommendation.",
+  "leaseSeconds": 120,
+  "batchTargets": 8,
+  "batchResidues": 8192,
+  "maxBundleBytes": 268435456,
+  "maxExpandedBytes": 1073741824,
+  "planned": {
+    "localGpuCards": 16
+  },
+  "workers": [
+    {
+      "id": "local-gpu-00",
+      "name": "本地 GPU 执行槽 00",
+      "tokenEnv": "PS_LOCAL_GPU_00_TOKEN",
+      "location": "local",
+      "mode": "real",
+      "engines": [
+        "alphafold3"
+      ],
+      "maxResidues": 5000
+    },
+    {
+      "id": "local-gpu-01",
+      "name": "本地 GPU 执行槽 01",
+      "tokenEnv": "PS_LOCAL_GPU_01_TOKEN",
+      "location": "local",
+      "mode": "real",
+      "engines": [
+        "alphafold3"
+      ],
+      "maxResidues": 5000
+    },
+    {
+      "id": "local-gpu-02",
+      "name": "本地 GPU 执行槽 02",
+      "tokenEnv": "PS_LOCAL_GPU_02_TOKEN",
+      "location": "local",
+      "mode": "real",
+      "engines": [
+        "alphafold3"
+      ],
+      "maxResidues": 5000
+    },
+    {
+      "id": "local-gpu-03",
+      "name": "本地 GPU 执行槽 03",
+      "tokenEnv": "PS_LOCAL_GPU_03_TOKEN",
+      "location": "local",
+      "mode": "real",
+      "engines": [
+        "alphafold3"
+      ],
+      "maxResidues": 5000
+    },
+    {
+      "id": "local-gpu-04",
+      "name": "本地 GPU 执行槽 04",
+      "tokenEnv": "PS_LOCAL_GPU_04_TOKEN",
+      "location": "local",
+      "mode": "real",
+      "engines": [
+        "alphafold3"
+      ],
+      "maxResidues": 5000
+    },
+    {
+      "id": "local-gpu-05",
+      "name": "本地 GPU 执行槽 05",
+      "tokenEnv": "PS_LOCAL_GPU_05_TOKEN",
+      "location": "local",
+      "mode": "real",
+      "engines": [
+        "alphafold3"
+      ],
+      "maxResidues": 5000
+    },
+    {
+      "id": "local-gpu-06",
+      "name": "本地 GPU 执行槽 06",
+      "tokenEnv": "PS_LOCAL_GPU_06_TOKEN",
+      "location": "local",
+      "mode": "real",
+      "engines": [
+        "alphafold3"
+      ],
+      "maxResidues": 5000
+    },
+    {
+      "id": "local-gpu-07",
+      "name": "本地 GPU 执行槽 07",
+      "tokenEnv": "PS_LOCAL_GPU_07_TOKEN",
+      "location": "local",
+      "mode": "real",
+      "engines": [
+        "alphafold3"
+      ],
+      "maxResidues": 5000
+    },
+    {
+      "id": "local-gpu-08",
+      "name": "本地 GPU 执行槽 08",
+      "tokenEnv": "PS_LOCAL_GPU_08_TOKEN",
+      "location": "local",
+      "mode": "real",
+      "engines": [
+        "alphafold3"
+      ],
+      "maxResidues": 5000
+    },
+    {
+      "id": "local-gpu-09",
+      "name": "本地 GPU 执行槽 09",
+      "tokenEnv": "PS_LOCAL_GPU_09_TOKEN",
+      "location": "local",
+      "mode": "real",
+      "engines": [
+        "alphafold3"
+      ],
+      "maxResidues": 5000
+    },
+    {
+      "id": "local-gpu-10",
+      "name": "本地 GPU 执行槽 10",
+      "tokenEnv": "PS_LOCAL_GPU_10_TOKEN",
+      "location": "local",
+      "mode": "real",
+      "engines": [
+        "alphafold3"
+      ],
+      "maxResidues": 5000
+    },
+    {
+      "id": "local-gpu-11",
+      "name": "本地 GPU 执行槽 11",
+      "tokenEnv": "PS_LOCAL_GPU_11_TOKEN",
+      "location": "local",
+      "mode": "real",
+      "engines": [
+        "alphafold3"
+      ],
+      "maxResidues": 5000
+    },
+    {
+      "id": "local-gpu-12",
+      "name": "本地 GPU 执行槽 12",
+      "tokenEnv": "PS_LOCAL_GPU_12_TOKEN",
+      "location": "local",
+      "mode": "real",
+      "engines": [
+        "alphafold3"
+      ],
+      "maxResidues": 5000
+    },
+    {
+      "id": "local-gpu-13",
+      "name": "本地 GPU 执行槽 13",
+      "tokenEnv": "PS_LOCAL_GPU_13_TOKEN",
+      "location": "local",
+      "mode": "real",
+      "engines": [
+        "alphafold3"
+      ],
+      "maxResidues": 5000
+    },
+    {
+      "id": "local-gpu-14",
+      "name": "本地 GPU 执行槽 14",
+      "tokenEnv": "PS_LOCAL_GPU_14_TOKEN",
+      "location": "local",
+      "mode": "real",
+      "engines": [
+        "alphafold3"
+      ],
+      "maxResidues": 5000
+    },
+    {
+      "id": "local-gpu-15",
+      "name": "本地 GPU 执行槽 15",
+      "tokenEnv": "PS_LOCAL_GPU_15_TOKEN",
+      "location": "local",
+      "mode": "real",
+      "engines": [
+        "alphafold3"
+      ],
+      "maxResidues": 5000
+    },
+    {
+      "id": "aliyun-gpu-00",
+      "name": "阿里云 GPU 执行槽示例",
+      "tokenEnv": "PS_ALI_GPU_00_TOKEN",
+      "location": "aliyun",
+      "mode": "real",
+      "engines": [
+        "alphafold3"
+      ],
+      "maxResidues": 5000
+    }
+  ]
+}

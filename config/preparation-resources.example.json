@@ -1,0 +1,6 @@
+{
+  "cpuBudget": 64,
+  "cpuPerPrepare": 32,
+  "diskMinFreeBytes": 53687091200,
+  "diskPerPrepareBytes": 8589934592
+}

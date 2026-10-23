@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "kind": "deployment-plan",
+  "description": "Reference topology, not a resource provisioner or live node registry. Controllers use config/workers.example.json; host agents use fleet configuration. No cloud instances are created by this file.",
+  "planned": {
+    "localGpuCards": 16,
+    "localGpuModel": "REPLACE_WITH_ACTUAL_MODEL",
+    "localGpuPlacement": "REPLACE_WITH_HOST_TO_DEVICE_MAPPING",
+    "aliyunResources": "Use existing ECS GPU instances or existing ACK GPU node pools; quantity is administrator-configured."
+  },
+  "observedAtConfigurationTime": {
+    "registeredOnlineNodes": 0,
+    "note": "This is not live state. The UI exclusively reads actual registration/heartbeat records from GET /api/cluster."
+  },
+  "controller": {
+    "publicWorkerURL": "https://foldspace-controller.example.org",
+    "registryTemplate": "config/workers.example.json",
+    "environment": {
+      "PROTEIN_STUDIO_DISTRIBUTED": "1",
+      "PROTEIN_STUDIO_PREDICTION_MODE": "workers",
+      "PROTEIN_STUDIO_WORKER_CONFIG": "/srv/foldspace/config/workers.local.json",
+      "PROTEIN_STUDIO_DATABASE_CONFIG": "/srv/foldspace/config/databases.local.json",
+      "PROTEIN_STUDIO_CPU_PREP_WORKERS": "2",
+      "PROTEIN_STUDIO_CPU_VALIDATE_WORKERS": "1",
+      "PROTEIN_STUDIO_READY_HIGH_WATER": "64"
+    },
+    "storage": {
+      "ledger": "/srv/foldspace/data/campaigns.sqlite3",
+      "sequenceAndTemplateDatabases": "/srv/protein-databases (read-only)",
+      "preparationCache": "/srv/foldspace/data/cache",
+      "transfersAndResults": "/srv/foldspace/data"
+    },
+    "tls": "Terminate HTTPS at an administrator-managed reverse proxy; keep browser/control-plane access restricted and validate server certificates in workers.",
+    "credentials": "A distinct bearer token per registered worker, injected from the tokenEnv named in the registry. Never place secret token values in this topology file."
+  },
+  "localFleet": {
+    "template": "config/fleet.local16.example.json",
+    "launcher": "python3 scripts/launch_worker_fleet.py --config config/fleet.local16.local.json",
+    "defaultNativeAF3Groups": "One persistent process per visible GPU; 16 independent workers when all 16 GPUs are on the same host.",
+    "multipleHosts": "Split the host fleet into the actual devices on each server; device indices are host-local and worker IDs are cluster-unique.",
+    "nativeMultiGpu": "The included AF3 resident adapter uses one device. A multi-GPU model requires its own verified native adapter and group semantics; scheduling several devices does not add model parallelism."
+  },
+  "aliyunFleet": {
+    "placement": "Existing ECS host service or ACK workload requesting an actual GPU allocation",
+    "registryLocation": "aliyun",
+    "registryMode": "real",
+    "engine": "alphafold3",
+    "dataAccess": "Download prepared bundles and upload per-target results over authenticated HTTPS; do not remotely read the full local sequence database for each prediction.",
+    "interruption": "Stop new claims, deliver completed targets if time permits, then rely on per-target lease recovery for unfinished work. Cloud interruption event integration is supplied by the deployment supervisor."
+  },
+  "batching": {
+    "registryDefaults": {"batchTargets": 8, "batchResidues": 8192, "leaseSeconds": 120},
+    "meaning": "Multiple compatible targets execute sequentially in one resident model process. This is not a claim of tensor minibatch support.",
+    "compatibility": "engine, database profile fingerprint, samples, recycles, runtime version, execution identity and coarse sequence-length bucket",
+    "warmup": "Weights load once per resident initialization; new shapes may still compile on first use."
+  },
+  "demonstration": {
+    "mode": "reference public structure replay",
+    "locations": ["local", "aliyun"],
+    "meaning": "Both demo agents may run on the same loopback machine; location labels do not prove deployment in Alibaba Cloud.",
+    "realGpuInference": false
+  },
+  "documentation": "docs/hybrid-resident-pipeline.md"
+}

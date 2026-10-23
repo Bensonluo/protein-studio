@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "example": true,
+  "localGpuCards": 16,
+  "paths": {
+    "projectRoot": "/srv/foldspace",
+    "python": "/opt/foldspace/bin/python",
+    "af3Python": "/opt/af3/venv/bin/python",
+    "af3Script": "/opt/af3/run_alphafold.py",
+    "modelDir": "/srv/af3/models",
+    "workRoot": "/var/lib/foldspace-workers",
+    "compilationCache": "/srv/af3/cache"
+  },
+  "controller": {
+    "id": "cpu-control",
+    "workerURL": "https://foldspace.example.org:4443",
+    "port": 8765,
+    "databaseRoot": "/srv/af3/databases",
+    "databaseRelease": "af3-v3.0-public-db-2022-09-28",
+    "hmmerBinDir": "/opt/hmmer/bin",
+    "dataDir": "/var/lib/foldspace",
+    "prepareWorkers": 1,
+    "searchThreads": 8,
+    "validationWorkers": 2,
+    "readyCap": 64
+  },
+  "model": {
+    "sourceCommit": "85c4d20505fd5cef05eac22b534d4e793971ae69",
+    "weights": [
+      {
+        "file": "af3.bin.zst",
+        "sha256": "REPLACE_WITH_ACTUAL_WEIGHT_SHA256"
+      }
+    ],
+    "samples": 5,
+    "recycles": 10,
+    "attention": "triton",
+    "maxTemplateDate": "2021-09-30",
+    "buckets": [
+      256,
+      512,
+      768,
+      1024,
+      1280,
+      1536,
+      2048,
+      2560,
+      3072,
+      3584,
+      4096,
+      4608,
+      5120
+    ]
+  },
+  "hosts": [
+    {
+      "id": "local-a",
+      "location": "local",
+      "gpuDevices": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7"
+      ],
+      "maxResidues": 1024
+    },
+    {
+      "id": "local-b",
+      "location": "local",
+      "gpuDevices": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7"
+      ],
+      "maxResidues": 1024
+    },
+    {
+      "id": "aliyun-a",
+      "location": "aliyun",
+      "gpuDevices": [
+        "0"
+      ],
+      "maxResidues": 1024
+    }
+  ]
+}

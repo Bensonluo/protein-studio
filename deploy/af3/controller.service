@@ -1,0 +1,30 @@
+# Install as /etc/systemd/system/foldspace-controller.service
+[Unit]
+Description=Foldspace AF3 controller, preparation and validation queues
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=foldspace
+Group=foldspace
+WorkingDirectory=/srv/foldspace
+EnvironmentFile=/etc/foldspace/controller.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/foldspace/bin/python /srv/foldspace/scripts/run_controller.py --config /etc/foldspace/controller.json
+Restart=on-failure
+RestartSec=10
+KillSignal=SIGTERM
+KillMode=mixed
+TimeoutStopSec=300
+StateDirectory=foldspace
+StateDirectoryMode=0700
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

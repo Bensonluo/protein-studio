@@ -1,0 +1,16 @@
+{
+  "name": "af3-smoke-ubiquitin",
+  "modelSeeds": [
+    1
+  ],
+  "sequences": [
+    {
+      "protein": {
+        "id": "A",
+        "sequence": "MQIFVKTLTGKTITLEVEPSDTIENVKAKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGG"
+      }
+    }
+  ],
+  "dialect": "alphafold3",
+  "version": 1
+}

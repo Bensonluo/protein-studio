@@ -1,0 +1,2 @@
+# Streaming confidence/PAE processing; wheel available on Python 3.10+.
+ijson==3.6.0

@@ -1,0 +1,264 @@
+"""Scientific values, bounded PAE memory, paths, and top-model extraction."""
+import copy
+import hashlib
+import json
+from pathlib import Path
+import tempfile
+import tracemalloc
+import unittest
+from unittest.mock import patch
+
+from backend import engine, result_artifacts as artifacts
+
+
+class ResultArtifactsTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name).resolve()
+        self.addCleanup(self.tmp.cleanup)
+
+    def source(self, data, name='confidence.json'):
+        path = self.root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(data), encoding='utf-8')
+        return path
+
+    def af3_sample(self, index, summary, full=None):
+        name = f'seed-1_sample-{index}'
+        directory = self.root / name
+        directory.mkdir()
+        path = directory / 'protein_model.pdb'
+        path.write_text(
+            'ATOM      1  CA  ALA A   1       0.000   0.000   0.000  1.00 90.00           C  \n'
+            'ATOM      2  CA  GLY A   2       1.000   0.000   0.000  1.00 80.00           C  \n')
+        if summary is not None:
+            self.source(summary, name + '/protein_summary_confidences.json')
+        self.source(full or {'pae': [[0, index + 1], [3, 0]]}, name + '/protein_confidences.json')
+        return path
+
+    def test_float64_roundtrip_preserves_direction_precision_and_source_bytes(self):
+        matrix = [[0, 0.12345678901234567], [31.749999999999996, 0]]
+        source = self.source({'pae': matrix, 'token_chain_ids': ['A', 'B'], 'token_res_ids': [1, 1], 'ptm': .7})
+        original = source.read_bytes()
+        result = artifacts.stream_confidence(source, self.root, build_pae=True)
+        desc = result['paeArtifact']
+        self.assertEqual(result['pae'], matrix)
+        self.assertEqual(artifacts.read_pae(desc, self.root)['values'], matrix)
+        self.assertEqual(desc['axisKind'], 'token')
+        self.assertEqual(desc['bytes'], 32)
+        self.assertEqual(desc['sourceSha256'], hashlib.sha256(original).hexdigest())
+        self.assertEqual(source.read_bytes(), original)
+        binary = self.root / desc['storageRelativePath']
+        self.assertEqual(desc['sha256'], hashlib.sha256(binary.read_bytes()).hexdigest())
+
+    def test_afdb_single_object_list_and_scalar_only_mode(self):
+        source = self.source([{'predicted_aligned_error': [[0, 2], [5, 0]], 'plddt': [91, 87], 'ptm': .9}])
+        scalar = artifacts.stream_confidence(source, self.root)
+        self.assertEqual(scalar, {'plddt': [91., 87.], 'ptm': .9})
+        self.assertFalse((self.root / '.result-artifacts').exists())
+        result = artifacts.stream_confidence(source, self.root, build_pae=True, axis_kind='residue')
+        self.assertEqual(result['pae'], [[0, 2], [5, 0]])
+
+    def test_invalid_matrices_never_publish_or_invent_values(self):
+        bad = [[], [[0, 1]], [[0], [2, 0]], [[0, None], [1, 0]], [[0, True], [1, 0]],
+               [[0, -1], [1, 0]], [[0, '1'], [1, 0]], [[[0], 1], [1, 0]]]
+        for matrix in bad:
+            with self.subTest(matrix=matrix):
+                source = self.source({'pae': matrix})
+                with self.assertRaises(ValueError):
+                    artifacts.stream_confidence(source, self.root, build_pae=True)
+                self.assertFalse(list((self.root / '.result-artifacts').glob('*.f64')))
+                self.assertFalse(list((self.root / '.result-artifacts').glob('.pae-*')))
+        for raw in ('{"pae":[[0,NaN],[1,0]]}', '{"pae":[[0,1e1000],[1,0]]}',
+                    '{"pae":[[0]],"pae":[[1]]}', '[{"pae":[[0]]},{"pae":[[1]]}]'):
+            source.write_text(raw)
+            with self.assertRaises((ValueError, OverflowError)):
+                artifacts.stream_confidence(source, self.root, build_pae=True)
+
+    def test_shape_byte_limits_and_cancellation_cleanup(self):
+        source = self.source({'pae': [[0, 1, 2]] * 3})
+        with patch.object(artifacts, 'MAX_DIMENSION', 2):
+            with self.assertRaisesRegex(ValueError, 'limit|dimension|Dimension'):
+                artifacts.stream_confidence(source, self.root, build_pae=True)
+        with patch.object(artifacts, 'MAX_SOURCE_BYTES', 2):
+            with self.assertRaisesRegex(ValueError, 'source limit'):
+                artifacts.stream_confidence(source, self.root, build_pae=True)
+        with self.assertRaises(engine.PredictionCancelled):
+            artifacts.stream_confidence(source, self.root, build_pae=True, cancelled=lambda: True)
+        self.assertFalse(list((self.root / '.result-artifacts').glob('.pae-*')))
+
+    def test_optional_limits_keep_structure_metrics_and_original_download(self):
+        directory = self.root / 'seed-1_sample-0'
+        directory.mkdir()
+        directory.joinpath('protein_model.pdb').write_text(
+            'ATOM      1  CA  ALA A   1       0.000   0.000   0.000  1.00 90.00           C  \n')
+        self.source({'ranking_score': .9, 'ptm': .8}, 'seed-1_sample-0/protein_summary_confidences.json')
+        source = self.source({'pae': [[0, 1, 2]] * 3}, 'seed-1_sample-0/protein_confidences.json')
+        with patch.object(artifacts, 'MAX_DIMENSION', 2):
+            result = engine._collect_outputs(self.root, 'alphafold3', self.root, [{'id': 'A', 'sequence': 'A'}])
+        self.assertTrue(Path(result['structurePath']).is_file())
+        self.assertEqual(result['ptm'], .8)
+        self.assertEqual(result['rankingScore'], .9)
+        self.assertIsNone(result['pae'])
+        self.assertEqual(result['paeArtifact']['status'], 'unavailable')
+        self.assertIn(str(source), [item['path'] for item in result['artifacts']])
+        with patch.object(artifacts, 'MAX_DIMENSION', 2):
+            scalar = artifacts.stream_confidence(self.source({'plddt': [90, 80, 70], 'ptm': .7}), self.root)
+        self.assertEqual(scalar['ptm'], .7)
+        self.assertNotIn('plddt', scalar)
+        self.assertTrue(scalar['warnings'])
+
+    def test_preview_indices_exact_tiles_and_strict_bounds(self):
+        matrix = [[float(row * 10 + col) for col in range(9)] for row in range(9)]
+        descriptor = artifacts.stream_confidence(self.source({'pae': matrix}), self.root, build_pae=True)['paeArtifact']
+        preview = artifacts.read_pae(descriptor, self.root, max_size=3)
+        self.assertEqual(preview['rowIndices'], [1, 4, 7])
+        self.assertEqual(preview['colIndices'], [1, 4, 7])
+        self.assertEqual(preview['values'], [[matrix[r][c] for c in [1, 4, 7]] for r in [1, 4, 7]])
+        tile = artifacts.read_pae(descriptor, self.root, row_start=2, col_start=3, rows=2, cols=3)
+        self.assertEqual(tile['method'], 'exact')
+        self.assertEqual(tile['values'], [row[3:6] for row in matrix[2:4]])
+        for args in ({'max_size': 257}, {'max_size': True}, {'row_start': -1, 'col_start': 0, 'rows': 1, 'cols': 1},
+                     {'row_start': 0}, {'row_start': 8, 'col_start': 0, 'rows': 2, 'cols': 1}):
+            with self.assertRaises(ValueError):
+                artifacts.read_pae(descriptor, self.root, **args)
+
+    def test_path_rebasing_registration_and_mutated_source_rejection(self):
+        source = self.source({'pae': [[0, 1], [2, 0]]}, 'attempt/confidence.json')
+        result = artifacts.stream_confidence(source, source.parent, build_pae=True)
+        artifacts.compact_pae(result, self.root)
+        desc = result['paeArtifact']
+        self.assertTrue(desc['storageRelativePath'].startswith('attempt/'))
+        with self.assertRaisesRegex(ValueError, 'registered'):
+            artifacts.publish_pae_urls(result, self.root, '/api/jobs/one')
+        result['artifacts'] = [dict(name=Path(a['path']).relative_to(self.root).as_posix()) for a in result['artifacts']]
+        artifacts.publish_pae_urls(result, self.root, '/api/jobs/one')
+        self.assertNotIn('storagePath', desc)
+        self.assertNotIn('sourcePath', desc)
+        self.assertEqual(desc['previewUrl'], '/api/jobs/one/pae?maxSize=256')
+        self.assertEqual(artifacts.read_pae(desc, self.root)['values'], [[0, 1], [2, 0]])
+        source.write_text('{}')
+        with self.assertRaisesRegex(ValueError, 'source changed'):
+            artifacts.read_pae(desc, self.root)
+
+    def test_symlinks_and_parent_escape_are_rejected(self):
+        source = self.source({'pae': [[0]]})
+        link = self.root / 'link.json'
+        link.symlink_to(source)
+        with self.assertRaisesRegex(ValueError, 'symbolic'):
+            artifacts.stream_confidence(link, self.root, build_pae=True)
+        result = artifacts.stream_confidence(source, self.root, build_pae=True)
+        desc = copy.deepcopy(result['paeArtifact'])
+        desc.pop('storagePath')
+        desc['storageRelativePath'] = '../outside.f64'
+        with self.assertRaises(ValueError):
+            artifacts.read_pae(desc, self.root)
+
+    def test_large_inline_compacts_before_copy_and_repeated_call_is_idempotent(self):
+        n = 129
+        matrix = [[float(row + col) for col in range(n)] for row in range(n)]
+        result = {'pae': matrix}
+        self.assertIs(artifacts.compact_pae(result, self.root), result)
+        self.assertIsNone(result['pae'])
+        descriptor = copy.deepcopy(result['paeArtifact'])
+        count = len(result['artifacts'])
+        artifacts.compact_pae(result, self.root)
+        self.assertEqual(result['paeArtifact'], descriptor)
+        self.assertEqual(len(result['artifacts']), count)
+        self.assertEqual(artifacts.read_pae(descriptor, self.root, row_start=128, col_start=127, rows=1, cols=2)['values'], [[255., 256.]])
+
+    def test_million_cell_source_and_preview_have_bounded_python_memory(self):
+        n = 1024
+        source = self.root / 'large.json'
+        row = '[' + ','.join('0.12345678901234567' if col % 2 else '31.75' for col in range(n)) + ']'
+        with source.open('w') as stream:
+            stream.write('{"pae":[')
+            for index in range(n):
+                stream.write((',' if index else '') + row)
+            stream.write(']}')
+        tracemalloc.start()
+        try:
+            result = artifacts.stream_confidence(source, self.root, build_pae=True)
+            preview = artifacts.read_pae(result['paeArtifact'], self.root)
+            _, peak = tracemalloc.get_traced_memory()
+        finally:
+            tracemalloc.stop()
+        self.assertIsNone(result['pae'])
+        self.assertEqual(result['paeArtifact']['bytes'], n * n * 8)
+        self.assertEqual(preview['shape'], [256, 256])
+        self.assertLess(peak, 16 * 1024 * 1024, f'Unexpected N² Python object retention: {peak}')
+
+    def test_engine_indexes_only_ranked_top_model_and_keeps_small_rank_records(self):
+        scores = [.6, .9, -.1, .1, .7]
+        for index, rank in enumerate(scores):
+            self.af3_sample(index, {'ranking_score': rank, 'ptm': .7})
+        actual = engine.stream_confidence
+        calls = []
+        def track(path, *args, **kwargs):
+            calls.append((Path(path), kwargs.get('build_pae')))
+            return actual(path, *args, **kwargs)
+        with patch.object(engine, 'stream_confidence', side_effect=track):
+            result = engine._collect_outputs(self.root, 'alphafold3', self.root, [{'id': 'A', 'sequence': 'AG'}])
+        self.assertEqual(result['pae'], [[0, 2], [3, 0]])
+        full_reads = [path for path, build in calls if path.name == 'protein_confidences.json']
+        self.assertEqual(len(full_reads), 1)
+        self.assertIn('sample-1', str(full_reads[0]))
+        self.assertEqual(result['rankingMetric'], 'reported ranking score')
+        self.assertEqual([m['rankingScore'] for m in result['rankedModels']], sorted(scores, reverse=True))
+        self.assertTrue(all(not build for path, build in calls if path.name.endswith('_summary_confidences.json')))
+        self.assertTrue(all('pae' not in model and 'residues' not in model for model in result['rankedModels']))
+
+    def test_worker_scalar_collection_has_no_full_reads_or_derived_artifacts(self):
+        for index, rank in enumerate([.4, .8, .6]):
+            self.af3_sample(index, {'ranking_score': rank, 'ptm': .7})
+        actual = engine.stream_confidence
+        calls = []
+        def track(path, *args, **kwargs):
+            self.assertTrue(Path(path).name.endswith('_summary_confidences.json'))
+            self.assertFalse(kwargs['build_pae'])
+            calls.append(Path(path))
+            return actual(path, *args, **kwargs)
+        with patch.object(engine, 'stream_confidence', side_effect=track), \
+                patch.object(engine, 'compact_pae', side_effect=AssertionError('Worker must not compact PAE')):
+            result = engine._collect_outputs(self.root, 'alphafold3', self.root,
+                [{'id': 'A', 'sequence': 'AG'}], build_pae=False)
+        self.assertEqual(result['rankingScore'], .8)
+        self.assertEqual(result['plddt'], [90., 80.])
+        self.assertEqual(len(result['rankedModels']), 3)
+        self.assertIsNone(result['pae'])
+        self.assertNotIn('paeArtifact', result)
+        self.assertTrue(calls)
+        self.assertFalse((self.root / '.result-artifacts').exists())
+
+    def test_incomplete_or_invalid_summaries_fall_back_without_matrix_indexing(self):
+        cases = [None, {}, {'ptm': .7}, {'ranking_score': 'not-a-number'},
+                 {'ranking_score': .1, 'padding': 'x' * (1024 * 1024)}]
+        for index, summary in enumerate(cases):
+            path = self.af3_sample(index, summary,
+                {'ranking_score': .95, 'ptm': .9, 'iptm': .8, 'plddt': [92, 88], 'pae': [[0, 1], [2, 0]]})
+            with self.subTest(summary=index), patch.object(engine, 'stream_confidence', wraps=engine.stream_confidence) as read:
+                metrics = engine._metrics_for(path, 'alphafold3', artifact_root=self.root)
+            full_calls = [c for c in read.call_args_list if Path(c.args[0]).name == 'protein_confidences.json']
+            self.assertEqual(len(full_calls), 1)
+            self.assertFalse(full_calls[0].kwargs['build_pae'])
+            self.assertEqual(metrics['rankingScore'], .95)
+            self.assertEqual(metrics['ptm'], .7 if index == 2 else .9)
+            self.assertEqual(metrics['plddt'], [92., 88.])
+        self.assertFalse((self.root / '.result-artifacts').exists())
+
+    def test_valid_summary_iptm_ptm_preserves_common_metric_without_full_reads(self):
+        for index, iptm in enumerate([.3, .8]):
+            self.af3_sample(index, {'iptm': iptm, 'ptm': .5})
+        actual = engine.stream_confidence
+        def summary_only(path, *args, **kwargs):
+            self.assertTrue(Path(path).name.endswith('_summary_confidences.json'))
+            return actual(path, *args, **kwargs)
+        with patch.object(engine, 'stream_confidence', side_effect=summary_only):
+            result = engine._collect_outputs(self.root, 'alphafold3', self.root, build_pae=False)
+        self.assertEqual(result['rankingMetric'], '0.8 ipTM + 0.2 pTM')
+        self.assertIn('sample-1', result['structurePath'])
+        self.assertEqual(result['iptm'], .8)
+
+
+if __name__ == '__main__':
+    unittest.main()

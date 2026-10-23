@@ -1,0 +1,6 @@
+# Preserve byte-exact public scientific fixtures and their manifest checksums.
+fixtures/* -text
+# PDB is a fixed-column format; trailing padding is part of the upstream file.
+fixtures/*.pdb -whitespace
+# Keep bundled third-party code and license notices byte-exact.
+web/vendor/* -text -whitespace

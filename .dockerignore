@@ -1,0 +1,10 @@
+.git
+.venv
+venv
+data
+**/__pycache__
+**/*.pyc
+.DS_Store
+*.log
+tests
+config/*.local.json
