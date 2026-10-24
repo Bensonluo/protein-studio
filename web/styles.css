@@ -63,3 +63,7 @@
 .residue.pae-sel-row{outline:2px solid #f0863c;outline-offset:-1px;background:rgba(240,134,60,.22);border-radius:2px}
 .residue.pae-sel-col{outline:2px solid #22c4cf;outline-offset:-1px;background:rgba(34,196,207,.22);border-radius:2px}
 .residue.pae-sel-overlap{outline:2px solid #c94fc0;outline-offset:-1px;background:rgba(201,79,192,.22);border-radius:2px}
+.contact-map{margin-top:8px;background:#f4f7f2;border:1px solid #e0e8da;border-radius:5px;padding:6px 8px 4px;display:inline-flex;flex-direction:column;gap:3px;font-size:10px;color:#40554a}
+.contact-map svg{display:block;width:160px;height:150px}
+.contact-map-legend{margin-top:4px;display:flex;gap:6px;font-size:9px;color:#5b6f62;flex-wrap:wrap}
+.contact-map-legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:2px;vertical-align:-1px}

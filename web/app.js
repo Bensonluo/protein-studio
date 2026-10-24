@@ -142,7 +142,43 @@ function renderChainConfidence(job,result) {
     return `<span class="pae-interface-chip" title="⟨PAE⟩_int：链对间残基对的 PAE 双向块均值（Zhu et al. 2023 口径）；PAE 非对称，均值已抹平方向差异，具体方向以 PAE 矩阵为准${score?`；ipSAE：仅统计 PAE&lt;10 Å 残基对的 TM 式得分、取两方向最大（Dunbrack 2025 口径，AlphaFold DB 采用）；解读分带 ≥0.8 很高 / ≥0.7 较可信 / ≥0.6 谨慎 / &lt;0.6 不可靠（AFDB）`:''}${lscore?`；iLIS：conf=1−PAE/12 仅对 PAE&lt;12 Å 格取均值、双向平均，cLIS 再限 Cα≤8 Å 接触格，iLIS=√(LIS×cLIS)（AFM-LIS/LIVIA 口径，Kim &amp; Perrimon 2026；无接触即 0）；分带 ≥0.551/0.339/0.223 = 1%/5%/10% FPR（Y2H 基准）`:''}">${escapeHTML(pair.a)}↔${escapeHTML(pair.b)} 界面 PAE ${pair.mean.toFixed(1)} Å${score?` · <span class="ipsae-band ipsae-${ipsaeBand(score.value)}">ipSAE ${score.value.toFixed(2)}</span>`:''}${lscore?` · <span class="ipsae-band ipsae-${ilisBand(lscore.ilis)}">iLIS ${lscore.ilis.toFixed(2)}</span>`:''}</span>`;}).join('')}</div>`:'';
   const fmtRanges=r=>r.filter(x=>Array.isArray(x)&&x.length===2&&Number.isInteger(x[0])&&Number.isInteger(x[1])).map(x=>x[0]===x[1]?`${x[0]+1}`:`${x[0]+1}–${x[1]+1}`).join(', ');
   const contactList=contacts.length?`<div class="pae-interface-contacts">${contacts.map(p=>`<div class="pae-contact-row" title="高置信界面接触对：PAE&lt;10 Å 且 Cα&lt;15 Å（两方向取较低 PAE，AFDB ipSAE 对口径）；残基号为 1 起的结构序号（ChimeraX alphafold interfaces 亦按参与残基汇报）">${escapeHTML(p.a)}↔${escapeHTML(p.b)}：高置信接触 ${p.pairs} 对 · ${escapeHTML(p.a)} 残基 ${escapeHTML(fmtRanges(p.resA))} · ${escapeHTML(p.b)} 残基 ${escapeHTML(fmtRanges(p.resB))}</div>`).join('')}</div>`:'';
-  return `<section class="panel analysis-panel chain-conf-panel"><div class="panel-heading"><h3>${icon('shield')}链间界面置信度</h3><span class="subtle">CHAIN CONFIDENCE</span></div>${table}${chips}${contactList}<div class="analysis-title-note">逐链 pTM 与平均界面 ipTM · 均值为 AF3 chain_iptm 口径，非对称界面建议结合 PAE 判断</div></section>`;
+  // Inter-chain 2D contact map (COcaDA convention: one axis per chain, one
+  // dot per contacting residue pair; the contact-map form is standard in
+  // ConPlot/Bioinformatics, and LIVIA's linear contact map connects the
+  // same cLIR pairs). Reuses the backend interfaceLines artifact (Cα≤8 Å
+  // pairs, lower-direction PAE) and the 3D contact-line five-band palette
+  // so both views read identically; sequence position on each axis shows
+  // which segment faces which. PAE missing → dot not drawn (same honesty
+  // rule as the 3D lines).
+  const lineColor=pae=>pae<=5?'#2b6cb0':pae<=10?'#4fa8d8':pae<=15?'#a8c95a':pae<=20?'#e0c341':'#e89a3c';
+  const lines=Array.isArray(result?.interfaceLines)?result.interfaceLines.filter(l=>l&&Number.isInteger(l.i)&&Number.isInteger(l.j)&&Number.isFinite(Number(l.pae))):[];
+  const resAll=Array.isArray(result?.residues)?result.residues:null;
+  const mapGroups=new Map();
+  if(resAll)for(const line of lines){
+    const first=resAll[line.i],second=resAll[line.j];
+    if(!first||!second||!first.chain||!second.chain||first.chain===second.chain)continue;
+    const key=first.chain<second.chain?`${first.chain}|${second.chain}`:`${second.chain}|${first.chain}`;
+    if(!mapGroups.has(key))mapGroups.set(key,[]);
+    mapGroups.get(key).push(line);
+  }
+  const mapPalette=['#9edac6','#b7cb85','#8cbbde','#e9bf95','#bdabdb'];
+  const chainColorOf=chain=>mapPalette[Math.max(0,chains.findIndex(c=>c.id===chain))%mapPalette.length];
+  const contactMaps=[...mapGroups].map(([key,group])=>{
+    const [a,b]=key.split('|');
+    const axisA=resAll.filter(r=>r?.chain===a),axisB=resAll.filter(r=>r?.chain===b);
+    if(!axisA.length||!axisB.length)return '';
+    const px=n=>30+(n+0.5)/axisA.length*124,py=n=>134-(n+0.5)/axisB.length*124;
+    const dots=group.map(line=>{
+      const first=resAll[line.i],second=resAll[line.j];
+      const aRes=first.chain===a?first:second,bRes=first.chain===a?second:first;
+      const ia=axisA.indexOf(aRes),ib=axisB.indexOf(bRes);
+      if(ia<0||ib<0)return '';
+      return `<circle cx="${px(ia).toFixed(1)}" cy="${py(ib).toFixed(1)}" r="3" fill="${lineColor(Number(line.pae))}"><title>${escapeHTML(`${a}:${aRes.residueNumber??''} ${aRes.aa||'X'} ↔ ${b}:${bRes.residueNumber??''} ${bRes.aa||'X'} · Cα≤8 Å · PAE ${Number(line.pae)} Å`)}</title></circle>`;
+    }).join('');
+    return `<div class="contact-map" data-pair="${escapeHTML(`${a}-${b}`)}" title="链间接触图（COcaDA 接触图惯例：每轴一条链、每个点一对 Cα≤8 Å 接触残基；LIVIA 线性接触图连接同一组 cLIR 对）：点颜色为该对较低方向 PAE 的五档分带，与三维接触线一致；点位置为两条链上的序列位置，读出哪段序列面对哪段">${escapeHTML(a)}↔${escapeHTML(b)} 接触图 · ${group.length} 对<svg viewBox="0 0 160 150" role="img" aria-label="${escapeHTML(`${a} ${b} inter-chain contact map`)}"><rect x="30" y="10" width="124" height="124" fill="#ffffff" stroke="#dfe8da"/><line x1="30" y1="134" x2="154" y2="134" stroke="#8aa6a7"/><line x1="30" y1="10" x2="30" y2="134" stroke="#8aa6a7"/>${dots}<text x="92" y="147" font-size="7" text-anchor="middle" fill="${chainColorOf(a)}">Chain ${escapeHTML(a)}</text><text x="10" y="72" font-size="7" text-anchor="middle" fill="${chainColorOf(b)}" transform="rotate(-90 10 72)">Chain ${escapeHTML(b)}</text><text x="30" y="142" font-size="7" fill="#5b6f62">${escapeHTML(String(axisA[0].residueNumber??1))}</text><text x="154" y="142" font-size="7" fill="#5b6f62" text-anchor="end">${escapeHTML(String(axisA[axisA.length-1].residueNumber??axisA.length))}</text><text x="26" y="137" font-size="7" fill="#5b6f62" text-anchor="end">${escapeHTML(String(axisB[0].residueNumber??1))}</text><text x="26" y="16" font-size="7" fill="#5b6f62" text-anchor="end">${escapeHTML(String(axisB[axisB.length-1].residueNumber??axisB.length))}</text></svg></div>`;
+  }).join('');
+  const contactLegend=mapGroups.size?`<div class="contact-map-legend">PAE Å：<span><i style="background:#2b6cb0"></i>≤5</span><span><i style="background:#4fa8d8"></i>–10</span><span><i style="background:#a8c95a"></i>–15</span><span><i style="background:#e0c341"></i>–20</span><span><i style="background:#e89a3c"></i>&gt;20</span></div>`:'';
+  return `<section class="panel analysis-panel chain-conf-panel"><div class="panel-heading"><h3>${icon('shield')}链间界面置信度</h3><span class="subtle">CHAIN CONFIDENCE</span></div>${table}${chips}${contactList}<div class="pae-interface-contacts contact-maps">${contactMaps}</div>${contactLegend}<div class="analysis-title-note">逐链 pTM 与平均界面 ipTM · 均值为 AF3 chain_iptm 口径，非对称界面建议结合 PAE 判断</div></section>`;
 }
 function renderConfidence(result) {
   const sampleCurve=viewerModelInfo().index>0?state.modelCurve:null;

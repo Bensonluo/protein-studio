@@ -428,3 +428,14 @@
 
 验证计划：同 #25 十层链。
 验证结果：诚实记录两处测试侧修正——(a) 首版断言经 colorfunc 写法 8s 超时，探针（临时副本文件，不动真测试）证实 3Dmol 把 colorfunc 解析进 WebGL colorArray 而不落 atom.style，字面色才可端到端断言，产品随即改为字面色方案（行为不变、可观测性恢复）；(b) 第二断言初写期待链模式字面色（不存在），修正为「字面色清除」并经探针证实无残留。终态 browser_ranked_models 21/21 绿；十层链 t1–t10 全绿（全量后端 332 OK/1 skip/72.7s）；手动 diff-scoped SEC-GREP CLEAN。
+
+## 2026-10-25 持续迭代：链间 2D 接触图
+
+#26 后把界面分析补上「序列邻接」维度——PAE 热图是全局×全局，3D 接触线是空间视角，均不直读「哪段序列面对哪段」。依据三源：COcaDA 蛋白接触数据库文档（接触图两轴各代表一条链、每点一对残基、悬停显全对接触明细、链对可选——跨链接触图即其标准形态）；ConPlot（Bioinformatics 2021, PMC8428603——接触图/distogram 为残基对可视化标准形式，可叠加 1D track）；LIVIA universal 页 + PMC13174586（linear contact map 连接 3D 结构中物理接触的 cLIR 残基对——同一组接触对的序列邻接呈现，另有 chord 全模型总览）。设计决策：复用 #23 interfaceLines 制品（Cα≤8Å、较低方向 PAE、上限 2048），零后端改动；每对链一个小 SVG（多链时并排小倍图）；每点=一接触对、悬停 title=残基身份（链:残基号+氨基酸）+Cα≤8Å+PAE；点色沿用 3D 接触线五档分带（#2b6cb0/#4fa8d8/#a8c95a/#e0c341/#e89a3c = ≤5/–10/–15/–20/>20 Å）两视图同读；轴按链内序列位置、端点刻度为结构残基号、Chain 标签用链配色；PAE 缺失对不画点（与 3D 同诚实规则）；残基数组缺席或索引越界则整组跳过不猜。
+
+1. [完成] web/app.js renderChainConfidence：contactList 后新增 lineColor/lines/resAll/mapGroups 分组（跨链守卫 first.chain!==second.chain）+ contactMaps 模板（160×150 viewBox、白底、xy 轴线、链色 Chain 标签、端点残基号刻度、circle+title）+ contactLegend 五档图例；返回模板插 ${contactList} 与 note 之间。
+2. [完成] web/styles.css：.contact-map 卡片（inline-flex 纵排、复用 pae-contact-row 底色语言）+ svg 尺寸 + .contact-map-legend 图例条。
+3. [完成] 测试 browser_ranked_models（21→22 项）：job-r 断言 [data-pair="A-B"] 图存在、circle 数=2、两个 title 正则（A:5/B:1 PAE 13、A:6/B:1 PAE 6.5）、fill 集合 {#4fa8d8,#a8c95a}、图例存在；README 功能句 + model-ui 22 项计数同步。
+
+验证计划：同 #26 十层链。
+验证结果：诚实记录——首跑红在测试侧：fixture 原两条 interfaceLines（{i:4,j:5},{i:3,j:5}）按 residues 数组落在链 A 内部（0–5 皆 A），被产品侧跨链守卫正确跳过；真实后端 interface_lines 只产跨链对（partners 扫描即跨链），系 fixture 不严谨而非产品 bug。修 fixture 补两条真跨链 line（{i:5,j:6} A6↔B1、{i:4,j:6} A5↔B1），pdbPrimary 无 B 链原子 → 3D 侧自动跳过、#23 contactLineCount===2 断言不受影响（顺带验证了 3D 缺原子跳过与 2D 跨链守卫两侧行为）。复跑 browser_ranked_models 22/22 绿；十层链 t1–t10 全绿（全量后端 332 OK/1 skip/72.8s）；手动 diff-scoped SEC-GREP CLEAN。

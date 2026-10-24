@@ -22,7 +22,7 @@ const detail={
       {rank:1,name:'sample-0',structureUrl:'/api/jobs/job-m/artifact?name=sample-0.pdb',structureFormat:'pdb',meanPlddt:88.1,ptm:0.8,iptm:0.85,rankingScore:0.842},
       {rank:2,name:'sample-1',structureUrl:'/api/jobs/job-m/artifact?name=sample-1.pdb',structureFormat:'pdb',meanPlddt:71.4,ptm:0.6,iptm:0.62,rankingScore:0.610},
     ],artifacts:[{name:'scores.json',url:'/api/jobs/job-m/artifact?name=scores.json',size:2048}]}},
-  'job-r':{...jobs.find(j=>j.id==='job-r'),result:{structureUrl:'/api/jobs/job-r/structure',structureFormat:'pdb',sequenceLength:6,meanPlddt:80.2,chainPtm:[0.82,0.55],chainIptm:[0.71,0.48],interfacePae:[{a:'A',b:'B',mean:3.2}],ipSae:[{a:'A',b:'B',value:0.85}],interfaceScores:[{a:'A',b:'B',lis:0.83,clis:0.79,ilis:0.81,lia:24,clia:18,ilia:20.78,ilisa:16.85}],interfaceContacts:[{a:'A',b:'B',pairs:23,resA:[[11,44],[97,109]],resB:[[4,29]]}],interfaceLines:[{i:4,j:5,pae:6.5},{i:3,j:5,pae:13}],plddt:[],residues:[...Array(6)].map((_,i)=>({aa:'A',chain:'A',residueNumber:i+1})).concat([...Array(4)].map((_,i)=>({aa:'A',chain:'B',residueNumber:i+1}))),provenance:{mode:'reference'},
+  'job-r':{...jobs.find(j=>j.id==='job-r'),result:{structureUrl:'/api/jobs/job-r/structure',structureFormat:'pdb',sequenceLength:6,meanPlddt:80.2,chainPtm:[0.82,0.55],chainIptm:[0.71,0.48],interfacePae:[{a:'A',b:'B',mean:3.2}],ipSae:[{a:'A',b:'B',value:0.85}],interfaceScores:[{a:'A',b:'B',lis:0.83,clis:0.79,ilis:0.81,lia:24,clia:18,ilia:20.78,ilisa:16.85}],interfaceContacts:[{a:'A',b:'B',pairs:23,resA:[[11,44],[97,109]],resB:[[4,29]]}],interfaceLines:[{i:4,j:5,pae:6.5},{i:3,j:5,pae:13},{i:5,j:6,pae:6.5},{i:4,j:6,pae:13}],plddt:[],residues:[...Array(6)].map((_,i)=>({aa:'A',chain:'A',residueNumber:i+1})).concat([...Array(4)].map((_,i)=>({aa:'A',chain:'B',residueNumber:i+1}))),provenance:{mode:'reference'},
     rankedModels:[{rank:1,name:'Polyubiquitin-B',structureUrl:'/api/jobs/job-r/artifact?name=afdb.pdb',structureFormat:'pdb',meanPlddt:80.2}],artifacts:[]}},
 };
 const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.stringify(data)});
@@ -172,6 +172,15 @@ const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.
   assert.match(contactText,/A↔B：高置信接触 23 对/);
   assert.match(contactText,/A 残基 12–45, 98–110/);
   assert.match(contactText,/B 残基 5–30/);
+  const contactMap=chainConf.locator('.contact-map[data-pair="A-B"]');
+  assert.equal(await contactMap.count(),1);
+  assert.equal(await contactMap.locator('circle').count(),2);
+  const dotTitles=await contactMap.locator('circle').evaluateAll(cs=>cs.map(c=>c.querySelector('title')?.textContent||'').sort());
+  assert.match(dotTitles[0],/A:5 A ↔ B:1 A · Cα≤8 Å · PAE 13/);
+  assert.match(dotTitles[1],/A:6 A ↔ B:1 A · Cα≤8 Å · PAE 6\.5/);
+  const dotFills=await contactMap.locator('circle').evaluateAll(cs=>cs.map(c=>c.getAttribute('fill')).sort());
+  assert.deepEqual(dotFills,['#4fa8d8','#a8c95a']);
+  assert.equal(await chainConf.locator('.contact-map-legend').count(),1);
   const ifaceBtn=page.locator('#iface-toggle');
   assert.equal(await ifaceBtn.count(),1);
   assert.match(await ifaceBtn.textContent(),/界面残基：关/);
@@ -204,6 +213,7 @@ const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.
   checks.push('Interface residue toggle highlights backend-computed confident-contact residues as accent sticks on the primary model only (PyMOL byres-within convention); absent on sample views and contact-less jobs');
   checks.push('Contact-lines toggle draws PAE-colored cylinders between 8 A cross-chain pairs (ChimeraX alphafold contacts convention, 0/5/10/15/20 A bands) on the primary model only and clears them on toggle-off');
   checks.push('Interface color mode grays non-interface residues and keeps the chain color on confident-contact residues (LIVIA Gray non-LIR convention); option only offered for multichain jobs with contact data');
+  checks.push('Inter-chain 2D contact map renders one dot per 8 A cross-chain pair with per-pair hover titles and the 3D contact-line PAE bands (COcaDA axis-per-chain convention, LIVIA linear contact map semantics); PAE-less pairs draw no dot');
   checks.push('Single-model reference jobs keep the plain viewer without a picker or per-row view actions');
   await page.locator('[data-view="jobs"]').click();
   await page.locator('[data-job-id="job-m"] .row-action').click();

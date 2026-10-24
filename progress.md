@@ -213,3 +213,9 @@
 - 研究：LIVIA About/Prediction Analysis（Gray non-LIR 选项 + Mol* LIR cartoon 默认视图 + Gradient 链色预设）+ ChimeraX interfaces 官方文档（伙伴链浅灰剪影 Show Contact Residues）+ flyark/LIVIA GitHub README（LIR 链色/cLIR 深色结构渲染）+ PyMOL InterfaceResidues 工作流（Oppenheimer 博客：非界面残基单独灰化）（四源）；actifpTM 候选研究后排除——正牌需 AF2 distogram（AF3 不产出，Dall'Armellina 2025 明示），LIVIA 亦仅 PAE 近似且自标偏高，诚实优先不实现近似口径。
 - 实现：#color-mode 新增「界面着色」选项（仅 ifaceData 门控）；applyViewerStyle interface 分支——非界面残基灰底 #8e9ca6（setStyle 字面色）+ 界面残基 per-链色 addStyle 字面色（#21 可观测惯例）；surface 无逐原子样式走渲染期 colorfunc；采样视图/无接触回退按链着色（select 联动回退选中显示）。
 - 验证：调试弧线如实记录——首版 colorfunc 断言超时 → 探针证实 3Dmol 将 colorfunc 解析进 WebGL 顶点色、不落 atom.style（字面色才可观测）→ 改字面色方案 → 二次探针证实产品行为正确且切回链色无字面色残留 → 修测试第二断言预期 → browser_ranked_models 21/21 绿；十层链 10/10（后端 332 OK/1 skip/72.7s，#26 未动后端）；SEC-GREP 手动 diff-scoped CLEAN。English commit: feat: interface focus color mode。
+
+### 2026-10-25 迭代 #27：链间 2D 接触图（feat: inter-chain 2D contact map）
+
+- 源：COcaDA 蛋白接触数据库文档（接触图两轴各一条链、每点一对残基、悬停明细、跨链即标准形态）+ ConPlot（Bioinformatics 2021, PMC8428603，接触图/distogram 标准视图）+ LIVIA universal 页（linear contact map 连接物理接触 cLIR 对；PMC13174586）（三源）。
+- 实现：renderChainConfidence 每对链一个小 SVG 接触图——每轴一链（链内序列位置、端点结构残基号刻度、链色 Chain 标签）、每点一对 Cα≤8Å 接触残基（悬停 title=残基身份+PAE）、点色=3D 接触线同款五档 PAE 分带（两视图同读）、五档图例一条；复用 #23 interfaceLines 制品零后端改动；PAE 缺失不画点、索引越界/残基数组缺席整组跳过。
+- 验证：首跑红在测试侧——fixture 原两条 line 落链 A 内部，被产品跨链守卫正确跳过（真实后端只产跨链对），修 fixture 补两条跨链 line（3D 侧因 B 链无 CA 原子自动跳过，#23 断言原样通过）；复跑 browser_ranked_models 22/22 绿；十层链 10/10（后端 332 OK/1 skip/72.8s，零后端改动）；SEC-GREP 手动 diff-scoped CLEAN。English commit: feat: inter-chain 2D contact map。
