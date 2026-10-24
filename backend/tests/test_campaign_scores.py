@@ -189,7 +189,8 @@ class CampaignScoreHTTPTests(unittest.TestCase):
         self.httpd = StudioHTTPServer(('127.0.0.1', 0), self.app)
         self.thread = threading.Thread(target=self.httpd.serve_forever, kwargs={'poll_interval': 0.01}, daemon=True)
         self.thread.start()
-        self.app.start()
+        # No app.start(): these routes are served fine without pipeline workers,
+        # and started workers would race the manual store.claim() calls below.
         self.base = f'http://127.0.0.1:{self.httpd.server_port}'
 
     def tearDown(self):

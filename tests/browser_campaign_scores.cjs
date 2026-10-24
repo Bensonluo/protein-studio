@@ -72,6 +72,17 @@ async function api(url,options={}){const response=await fetch(base+url,{...optio
   const deliveredHref=await page.locator('[data-campaign-export="completed"]').getAttribute('href');
   assert.match(deliveredHref,/sort=plddt/);
   checks.push('Delivered-export link follows the active score sort');
+  const fasta2=[...Array(2)].map((_,i)=>`>概览候选_${i+1}\n${ubiquitin.chains[0].sequence}\n`).join('');
+  await page.locator('#campaign-name').fill('批次概览验证 · 第二批次');
+  await page.locator('#campaign-file').setInputFiles({name:'overview.fasta',mimeType:'text/plain',buffer:Buffer.from(fasta2)});
+  const campaign2Response=page.waitForResponse(r=>r.url()===base+'/api/campaigns'&&r.request().method()==='POST');
+  await page.locator('#campaign-submit').click();
+  const campaign2=await (await campaign2Response).json();created.push(campaign2.id);
+  await page.waitForSelector('.campaign-overview tbody tr');
+  await page.waitForFunction(count=>document.querySelectorAll('.campaign-overview tbody tr').length===count,2);
+  await page.locator(`[data-campaign-pick="${campaign.id}"]`).click();
+  await page.waitForFunction(id=>document.querySelector('#campaign-select')?.value===id,campaign.id);
+  checks.push('Campaigns overview table lists runs and switches selection');
   await page.screenshot({path:path.join(output,'campaign-scores.png'),fullPage:true});
   assert.deepEqual(errors,[]);checks.push('No browser JavaScript errors');
   fs.writeFileSync(path.join(output,'campaign-scores-verification.json'),JSON.stringify({date:new Date().toISOString(),base,checks,createdCampaignIds:created,errors,note:'Reference replay validates the confidence ledger, sorting, UI contract and scored export only; no new model prediction or GPU benchmark.'},null,2));

@@ -181,3 +181,14 @@
 3. [完成] 浏览器契约 +1：分布条段数与图例 swatch 数同步断言；README 分带描述补分布条。
 
 本轮：分数浏览器契约 11/11（+1 分布条同步）、browser_campaign 回归 9/9、根 tests 67/67、客户端通过、全后端 323 发现 OK（1 按需 skip，72.4s；本轮纯前端）。分布为账本聚合非 GPU 吞吐；截图归档 artifacts/campaign-scores.png，模型级目检工具不可用（本地文件不支持），几何/同步由 DOM 断言覆盖。演示服务用后即停。下一轮候选：PAE 快照进入批次交付物、或跨批次（campaigns 列表）汇总。
+
+## 2026-10-24 持续迭代：批次概览列表
+
+上轮候选落地。依据 Seqera Platform/Tower 等 run 监控惯例（runs 列表显示状态、任务计数、进度，实时刷新）：多批次并存时选择器下拉不足以比较，需要概览列表。列表 API（list→get 全量）已含 counts 与 scoreBands，零后端改动。
+
+1. [完成] ≥2 批次时显示批次概览表：名称（点击切换）· 状态 · 目标 · 已交付(%) · 失败 · ipTM/pLDDT 迷你分布条（tooltip 携带带名与计数）。
+2. [完成] campaignBandEntries 单一构造器被面板分布与概览共用，分带口径同源不漂移；焦点恢复覆盖 data-campaign-pick。
+3. [完成] 浏览器契约 +1：创建第二批次后表行数=2，点击概览行切换选择。
+4. [完成] 修复迭代 #1 HTTP 测试竞态：CampaignScoreHTTPTests 曾 app.start() 启动真实管线 worker，与手工 store.claim 竞争领取（两次在负载下现形为 claim→None）；该类只走 GET 路由，去掉 start() 根治，套件重跑全绿。
+
+本轮：分数浏览器契约 12/12（+1 概览）、browser_campaign 回归 9/9、根 tests 67/67、客户端通过、全后端 323 发现 OK（1 按需 skip，修复后复跑 74.0s；中途一轮 1 error 为上述测试竞态，已根治并复验）。概览为账本聚合轮询数据。演示服务用后即停。另：应用户要求，此前公开演示与置信度工作已按功能分两个英文 commit（ccef98c、bc9b49f）入库。

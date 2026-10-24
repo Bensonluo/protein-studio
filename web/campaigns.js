@@ -25,7 +25,7 @@ function renderCampaignMonitorRegion(){
   const monitor=$('#campaign-monitor');if(!monitor)return;
   const active=document.activeElement,focusId=monitor.contains(active)?active.id:null;
   const focusTarget=monitor.contains(active)?active.dataset?.inspectTarget:null;
-  const focusAttribute=monitor.contains(active)?['data-stage-filter','data-score-filter','data-campaign-export','data-campaign-action'].find(key=>active.hasAttribute(key)):null;
+  const focusAttribute=monitor.contains(active)?['data-stage-filter','data-score-filter','data-campaign-export','data-campaign-action','data-campaign-pick'].find(key=>active.hasAttribute(key)):null;
   const focusValue=focusAttribute?active.getAttribute(focusAttribute):null;
   const focusInChips=!!active.closest?.('.campaign-filter-chips');
   const tableScroll=monitor.querySelector('.table-scroll')?.scrollLeft||0;
@@ -123,6 +123,34 @@ function renderCampaignInspectScores(item){
   if(scores.meanPlddt!=null)rows.push(['平均 pLDDT',`${formatScore(scores.meanPlddt)} <span class="campaign-score-band ${plddt[0]}">${plddt[1]}</span>`,'残基级置信均值 0–100；AF DB 四带 ≥90/70–90/50–70/<50']);
   return `<section class="campaign-inspect-section campaign-inspect-scores" data-score-section="true"><div class="campaign-inspect-section-title"><h3>置信度评分</h3><span>已发布结果的账本分数</span></div><dl class="campaign-inspect-facts">${rows.map(([label,value,title])=>`<div><dt title="${title}">${label}</dt><dd>${value}</dd></div>`).join('')}</dl>${scores.rankingMetric?`<p class="campaign-inspect-hint">排名口径：${escapeHTML(scores.rankingMetric)}</p>`:''}<p class="campaign-inspect-hint">ipTM 分带按 EBI 界面置信阈值；平均 pLDDT 按 AlphaFold DB 四带。分数为预测置信的元数据，不代表实验测定精度。</p></section>`;
 }
+function campaignBandEntries(bands){
+  if(!bands)return null;
+  return {
+    iptm:[{cls:'s1',label:'ipTM 高 ≥0.8',count:bands.iptm.high,title:'ipTM ≥ 0.8（EBI 高置信）'},
+      {cls:'s2',label:'灰区 0.6–0.8',count:bands.iptm.gray,title:'EBI 界面置信灰区'},
+      {cls:'s3',label:'低 <0.6',count:bands.iptm.low,title:'ipTM < 0.6 可能失败（EBI）'}],
+    plddt:[{cls:'s1',label:'pLDDT ≥90',count:bands.plddt.veryHigh,title:'平均 pLDDT ≥ 90（AF DB 很高）'},
+      {cls:'s2',label:'70–90',count:bands.plddt.confident,title:'平均 pLDDT 70 – 90（AF DB 置信）'},
+      {cls:'s3',label:'50–70',count:bands.plddt.low,title:'平均 pLDDT 50 – 70（AF DB 低）'},
+      {cls:'s4',label:'<50',count:bands.plddt.veryLow,title:'平均 pLDDT < 50（AF DB 很低，常为无序）'}]
+  };
+}
+function campaignMiniBar(entries){
+  const segs=entries.filter(entry=>entry.count>0);
+  if(!segs.length)return '<span class="subtle">—</span>';
+  return `<div class="campaign-band-bar campaign-band-mini" role="img" aria-label="${segs.map(entry=>entry.label+' × '+formatCount(entry.count)).join('、')}">${segs.map(entry=>`<span class="campaign-band-seg ${entry.cls}" style="flex-grow:${entry.count}" title="${entry.title} × ${formatCount(entry.count)}"></span>`).join('')}</div>`;
+}
+function renderCampaignOverview(){
+  const list=batchState.campaigns;
+  if(list.length<2)return '';
+  const rows=list.map(c=>{
+    const bands=campaignBandEntries(c.metrics?.scoreBands);
+    const counts=c.counts||{},done=counts.completed||0,total=c.totalItems||0;
+    const status=c.isComplete?(counts.failed?'已结束':'已完成'):({active:'执行中',paused:'已暂停',cancelled:'已取消'}[c.status]||c.status);
+    return `<tr${c.id===batchState.selectedId?' class="active"':''}><td><button class="campaign-pick text-button" data-campaign-pick="${escapeHTML(c.id)}">${escapeHTML(c.name)}</button></td><td><span class="batch-item-state ${escapeHTML(c.status)}">${status}</span></td><td class="mono">${formatCount(total)}</td><td class="mono">${formatCount(done)}${total?` · ${Math.round(done/total*100)}%`:''}</td><td class="mono">${formatCount(counts.failed||0)}</td><td>${campaignMiniBar(bands?.iptm||[])}</td><td>${campaignMiniBar(bands?.plddt||[])}</td></tr>`;
+  }).join('');
+  return `<details class="campaign-overview-details" open><summary>批次概览 · ${formatCount(list.length)} 个批次</summary><div class="table-scroll"><table class="campaign-overview"><thead><tr><th>批次</th><th>状态</th><th>目标</th><th>已交付</th><th>失败</th><th>ipTM 分布</th><th>pLDDT 分布</th></tr></thead><tbody>${rows}</tbody></table></div><p class="campaign-inspect-hint">来自批次列表轮询的账本聚合；点击批次切换。分布条与所选批次面板同口径（EBI ipTM 三带 / AF DB pLDDT 四带）。</p></details>`;
+}
 function campaignBandRow(metric,ariaText,entries){
   const segs=entries.filter(entry=>entry.count>0);
   if(!segs.length)return '';
@@ -132,13 +160,7 @@ function campaignBandRow(metric,ariaText,entries){
 function renderCampaignBandSummary(c){
   const bands=c.metrics?.scoreBands;
   if(!bands||!(Number(c.metrics?.scoredTargets)>0))return '';
-  const iptm=[{cls:'s1',label:'ipTM 高 ≥0.8',count:bands.iptm.high,title:'ipTM ≥ 0.8（EBI 高置信）'},
-    {cls:'s2',label:'灰区 0.6–0.8',count:bands.iptm.gray,title:'EBI 界面置信灰区'},
-    {cls:'s3',label:'低 <0.6',count:bands.iptm.low,title:'ipTM < 0.6 可能失败（EBI）'}];
-  const plddt=[{cls:'s1',label:'pLDDT ≥90',count:bands.plddt.veryHigh,title:'平均 pLDDT ≥ 90（AF DB 很高）'},
-    {cls:'s2',label:'70–90',count:bands.plddt.confident,title:'平均 pLDDT 70 – 90（AF DB 置信）'},
-    {cls:'s3',label:'50–70',count:bands.plddt.low,title:'平均 pLDDT 50 – 70（AF DB 低）'},
-    {cls:'s4',label:'<50',count:bands.plddt.veryLow,title:'平均 pLDDT < 50（AF DB 很低，常为无序）'}];
+  const {iptm,plddt}=campaignBandEntries(bands);
   const legend=entries=>entries.some(entry=>entry.count>0)?`<div class="campaign-band-legend">${entries.filter(entry=>entry.count>0).map(entry=>`<span class="campaign-score-band" title="${entry.title} × ${formatCount(entry.count)}"><i class="campaign-band-swatch ${entry.cls}"></i>${entry.label} × ${formatCount(entry.count)}</span>`).join('')}</div>`:'';
   const rows=campaignBandRow('ipTM','ipTM 界面置信分布',iptm)+campaignBandRow('pLDDT','平均 pLDDT 置信分布',plddt);
   if(!rows)return '';
@@ -226,7 +248,7 @@ function dismissCampaignCancellation(){batchOperation.confirmation=null;renderCa
 function renderCampaignMonitor(){
   const c=batchState.campaign,counts=c?.counts||{},config=batchState.config;
   const selector=`<div class="toolbar batch-selector"><select id="campaign-select" aria-label="选择预测批次"><option value="" ${batchState.campaigns.length?'disabled':''}>${batchState.loaded?'暂无批次，请先导入':'正在读取批次…'}</option>${batchState.campaigns.map(item=>`<option value="${escapeHTML(item.id)}" ${item.id===batchState.selectedId?'selected':''}>${escapeHTML(item.name)} · ${formatCount(item.totalItems)} 项</option>`).join('')}</select><button class="button button-secondary" id="refresh-campaign">${icon('rotate')}刷新</button></div><p class="campaign-refresh-state" role="status" hidden>正在更新目标列表…</p>${batchState.error?`<div class="campaign-refresh-error" role="alert">${escapeHTML(batchState.error)}${c?.id&&c.id!==batchState.selectedId?`<p>仍显示上次读取的「${escapeHTML(c.name)}」。所选批次读取成功后可继续操作。</p>`:''}</div>`:''}`;
-  if(!c)return selector+`<section class="panel batch-empty">${icon('workflow')}<h3>等待一份批次清单</h3><p>导入文件后，各阶段的积压、执行和完成数量会在这里实时更新。</p></section>`;
+  if(!c)return selector+renderCampaignOverview()+`<section class="panel batch-empty">${icon('workflow')}<h3>等待一份批次清单</h3><p>导入文件后，各阶段的积压、执行和完成数量会在这里实时更新。</p></section>`;
   const total=c.totalItems||0,done=counts.completed||0,failed=counts.failed||0,cancelled=counts.cancelled||0;
   const backlog=pipelineStages.slice(0,-1).reduce((n,[stage])=>n+Number(counts[stage]||0),0);
   const percent=total?done/total*100:0;
@@ -246,7 +268,7 @@ function renderCampaignMonitor(){
   const pageCurrent=!batchState.publishedView||batchState.publishedView===campaignViewKey();
   const rows=(pageCurrent?batchState.page.items||[]:[]).map(item=>`<tr><td><button class="campaign-target-link" data-inspect-target="${escapeHTML(item.id)}" aria-label="检查目标 ${escapeHTML(item.name||item.targetId)}">${escapeHTML(item.name||item.targetId)}</button><span class="job-subline mono">${escapeHTML(item.targetId)}</span></td><td><span class="batch-item-state ${escapeHTML(item.stage)}">${escapeHTML(batchStageNames[item.stage]||item.stage)}</span>${renderCampaignCachePills(item)}${window.renderMSAProgressPill?.(item)||''}</td><td class="campaign-score-td">${renderCampaignScoreCell(item)}</td><td class="mono">${formatCount(item.sequenceLength)} aa</td><td class="mono">${item.attempt??0}</td><td><div class="campaign-row-actions"><button class="text-button" data-inspect-target="${escapeHTML(item.id)}">详情</button>${item.stage==='completed'?`<button class="text-button" data-campaign-item="${escapeHTML(item.id)}">查看结构 ↗</button>`:''}</div>${item.error?`<span class="batch-item-note campaign-error-preview" title="${escapeHTML(item.error)}">${escapeHTML(item.error)}</span>`:''}</td></tr>`).join('');
   const scoreSort=`<select id="campaign-score-sort" aria-label="按置信度排序"><option value="seq" ${batchState.sort==='seq'?'selected':''}>默认顺序</option><option value="ranking" ${batchState.sort==='ranking'?'selected':''}>排名分 降序</option><option value="iptm" ${batchState.sort==='iptm'?'selected':''}>ipTM 降序</option><option value="ptm" ${batchState.sort==='ptm'?'selected':''}>pTM 降序</option><option value="plddt" ${batchState.sort==='plddt'?'selected':''}>平均 pLDDT 降序</option></select>`;
-  return selector+`<section class="panel batch-dashboard">${actions}${renderCampaignOperation(c)}${stats}${pools}${typeof renderPreparationResourcesPanel==='function'?renderPreparationResourcesPanel(config):''}${stages}<p class="batch-footnote">本批次准备中 + 就绪 ${formatCount((counts.preparing||0)+(counts.ready||0))} 项；高水位由所有批次共享。参考回放不执行真实 MSA 或 GPU 计算。</p>${residentInfo}${diagnosis}${c.engine!=='reference'?window.renderMSASearchStrategy?.(c.databaseProfile,'campaign')||'':''}${window.renderMSAOverview?.(c)||''}${renderPreparationReuseOverview(c)}</section><section class="panel batch-items"><div class="panel-heading"><h3>${icon('layers')}目标与阶段</h3><div class="campaign-list-controls">${scoreSort}<select id="campaign-stage-filter" aria-label="筛选管线阶段"><option value="">全部阶段</option>${Object.entries(batchStageNames).map(([id,label])=>`<option value="${id}" ${batchState.stage===id?'selected':''}>${label}</option>`).join('')}</select></div></div>${quickFilters}<div class="table-scroll"><table><thead><tr><th>预测目标</th><th>阶段</th><th title="排名分为 AF3 官方 ranking score 口径（越高越好）；ipTM/pTM 为 0–1 界面与拓扑置信；平均 pLDDT 为 0–100 局部置信">置信度</th><th>长度</th><th title="阶段领取及恢复累计计数，不是模型采样次数">阶段领取次数</th><th>检查 / 结构</th></tr></thead><tbody>${rows||`<tr><td colspan="6" class="campaign-table-empty">${pageCurrent?'当前筛选没有目标':batchState.error?'所选列表读取失败，点击刷新重试。':'正在读取所选目标列表…'}</td></tr>`}</tbody></table></div>${pagination}${exports}</section>`;
+  return selector+renderCampaignOverview()+`<section class="panel batch-dashboard">${actions}${renderCampaignOperation(c)}${stats}${pools}${typeof renderPreparationResourcesPanel==='function'?renderPreparationResourcesPanel(config):''}${stages}<p class="batch-footnote">本批次准备中 + 就绪 ${formatCount((counts.preparing||0)+(counts.ready||0))} 项；高水位由所有批次共享。参考回放不执行真实 MSA 或 GPU 计算。</p>${residentInfo}${diagnosis}${c.engine!=='reference'?window.renderMSASearchStrategy?.(c.databaseProfile,'campaign')||'':''}${window.renderMSAOverview?.(c)||''}${renderPreparationReuseOverview(c)}</section><section class="panel batch-items"><div class="panel-heading"><h3>${icon('layers')}目标与阶段</h3><div class="campaign-list-controls">${scoreSort}<select id="campaign-stage-filter" aria-label="筛选管线阶段"><option value="">全部阶段</option>${Object.entries(batchStageNames).map(([id,label])=>`<option value="${id}" ${batchState.stage===id?'selected':''}>${label}</option>`).join('')}</select></div></div>${quickFilters}<div class="table-scroll"><table><thead><tr><th>预测目标</th><th>阶段</th><th title="排名分为 AF3 官方 ranking score 口径（越高越好）；ipTM/pTM 为 0–1 界面与拓扑置信；平均 pLDDT 为 0–100 局部置信">置信度</th><th>长度</th><th title="阶段领取及恢复累计计数，不是模型采样次数">阶段领取次数</th><th>检查 / 结构</th></tr></thead><tbody>${rows||`<tr><td colspan="6" class="campaign-table-empty">${pageCurrent?'当前筛选没有目标':batchState.error?'所选列表读取失败，点击刷新重试。':'正在读取所选目标列表…'}</td></tr>`}</tbody></table></div>${pagination}${exports}</section>`;
 }
 
 function campaignStageId(value){return ({prepare:'preparing',preparation:'preparing',prepared:'ready',predict:'predicting',prediction:'predicting',validate:'validating',validation:'validating'})[value]||value;}
@@ -436,6 +458,7 @@ function bindCampaignMonitorEvents(){
   $('#campaign-stage-filter')?.addEventListener('change',async e=>{batchState.stage=e.target.value;batchState.offset=0;await refreshCampaignData();});
   $('#campaign-score-sort')?.addEventListener('change',async e=>{batchState.sort=e.target.value;batchState.offset=0;await refreshCampaignData();});
   document.querySelectorAll('[data-score-filter]').forEach(el=>el.addEventListener('click',async()=>{const value=Number(el.dataset.scoreFilter);batchState.minIptm=batchState.minIptm===value?null:value;batchState.offset=0;await refreshCampaignData();}));
+  document.querySelectorAll('[data-campaign-pick]').forEach(el=>el.addEventListener('click',()=>{const select=$('#campaign-select');if(!select)return;if(select.value!==el.dataset.campaignPick){select.value=el.dataset.campaignPick;select.dispatchEvent(new Event('change'));}else select.focus();}));
   document.querySelectorAll('[data-stage-filter]').forEach(el=>el.addEventListener('click',async()=>{batchState.stage=batchState.stage===el.dataset.stageFilter?'':el.dataset.stageFilter;batchState.offset=0;await refreshCampaignData();}));
   $('#campaign-prev')?.addEventListener('click',async()=>{batchState.offset=Math.max(0,batchState.offset-25);await refreshCampaignData();});
   $('#campaign-next')?.addEventListener('click',async()=>{batchState.offset+=25;await refreshCampaignData();});

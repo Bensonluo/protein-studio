@@ -75,3 +75,13 @@
 .campaign-band-swatch.s2{background:#cfaa2d}
 .campaign-band-swatch.s3{background:#d96820}
 .campaign-band-swatch.s4{background:#9c3226}
+
+/* Campaigns overview: runs-list table with shared band-bar vocabulary. */
+.campaign-overview-details{margin:12px 0}
+.campaign-overview-details summary{cursor:pointer;font-size:11px;font-weight:550;color:#5c7350;padding:6px 2px}
+.campaign-overview{width:100%;border-collapse:collapse}
+.campaign-overview th{font-size:9px;font-weight:550;color:#7f9471;text-align:left;padding:5px 8px;border-bottom:1px solid #e6ecdf;white-space:nowrap}
+.campaign-overview td{font-size:11px;padding:6px 8px;border-bottom:1px solid #eef2ea;vertical-align:middle}
+.campaign-overview tr.active{background:#f4f8ef}
+.campaign-overview .campaign-pick{padding:0;text-align:left;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.campaign-band-mini{max-width:96px;min-width:56px;height:7px;border-radius:4px}

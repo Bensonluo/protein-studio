@@ -79,3 +79,11 @@
 按 dataviz skill 流程为批次面板新增 ipTM/pLDDT 100% 堆叠分布条：先用 validate_palette 实测发现原分带徽标配色不合格（琥珀/橙 ΔE 6.6），换验证通过的有序色板（绿 #2f7d4f/金 #cfaa2d/橙 #d96820/深红 #9c3226），徽标本身维持原配色；段宽按带计数、2px 表面间隙、外端圆角、逐段 tooltip 与 aria-label，图例行带 swatch+标签+计数（identity 不靠色 alone，金色对比度 WARN 由图例文字 relief）。后端零改动，复用迭代三 scoreBands。
 
 验收：分数浏览器契约 11/11（新增分布条段与图例同步检查）、browser_campaign 回归 9/9、根 tests 67/67、campaign_client 通过、全后端 323 发现 OK（1 按需 skip，72.393s）。分布为 SQLite 账本聚合。截图归档；模型级目检工具本地文件不支持，几何与同步由 DOM 断言覆盖。演示服务 8973 验收后停止；主服务未动，无部署。
+
+## 2026-10-24 批次概览列表迭代
+
+按 run 监控 UI 惯例新增批次概览：≥2 批次时表格列出名称/状态/目标/已交付/失败与 ipTM、pLDDT 迷你分布条（与面板同构造器同口径），点击行切换批次；列表数据来自既有 /api/campaigns 轮询，后端零改动。浏览器契约新增第二批次创建与切换检查。
+
+同时根治迭代 #1 遗留的测试竞态：CampaignScoreHTTPTests 的 app.start() 会启动真实管线 worker 与手工 claim 竞争（负载下两次现形 claim→None TypeError）；该测试类仅走 GET 路由，移除 start() 后确定性消除，全后端复跑 323 OK。
+
+验收：分数浏览器契约 12/12、browser_campaign 回归 9/9、根 tests 67/67、campaign_client 通过、全后端 323 发现 OK（1 按需 skip，73.998s 复跑）。另应用户要求将公开演示（ccef98c）与置信度筛选（bc9b49f）分两个英文 commit 提交。演示服务 8973 验收后停止；主服务未动，无部署。
