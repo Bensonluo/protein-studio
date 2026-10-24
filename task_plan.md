@@ -439,3 +439,14 @@
 
 验证计划：同 #26 十层链。
 验证结果：诚实记录——首跑红在测试侧：fixture 原两条 interfaceLines（{i:4,j:5},{i:3,j:5}）按 residues 数组落在链 A 内部（0–5 皆 A），被产品侧跨链守卫正确跳过；真实后端 interface_lines 只产跨链对（partners 扫描即跨链），系 fixture 不严谨而非产品 bug。修 fixture 补两条真跨链 line（{i:5,j:6} A6↔B1、{i:4,j:6} A5↔B1），pdbPrimary 无 B 链原子 → 3D 侧自动跳过、#23 contactLineCount===2 断言不受影响（顺带验证了 3D 缺原子跳过与 2D 跨链守卫两侧行为）。复跑 browser_ranked_models 22/22 绿；十层链 t1–t10 全绿（全量后端 332 OK/1 skip/72.8s）；手动 diff-scoped SEC-GREP CLEAN。
+
+## 2026-10-25 持续迭代：环形接触总览
+
+#27 后补全接触图家族：逐对 2D 图在 >2 链时需逐方格看，缺一张全链对总览。依据三源：LIVIA universal + About（Circular Contact Map = chord diagram：弧=链、弧长∝链长、cLIR 接触线跨全部链对、可选 pLDDT/domain 环、Circos 式刻度）；AlphaBridge（PDB-REDO，GitHub ribbon_plot：circular layout showing all assigned interfaces and contact links——独立工具同惯例）；COcaDA/ConPlot（#27 已引，接触图家族坐标参照）。设计决策：复用 #27 分组（mapGroups，跨链守卫已滤同链对）与五档 PAE 色带、悬停 title 与 2D 点完全一致（两图一数据一语言）；弧角∝链残基数、链间留 0.06 rad 间隙、链色带 stroke 8（R=66）、弦为过圆心二次贝塞尔（inner=62 接弧带内缘）；链标签置于弧中点外侧（R+11）；链集合取 job.chains 与 residues 交集（只画有残基的链）；mapGroups 空则整卡不渲染（与 2D 图同门控）。
+
+1. [完成] web/app.js renderChainConfidence：contactLegend 前新增 contactChord IIFE（present/members/count 累积角度、point/bandPath 几何辅助、chords 从 mapGroups.values() 展平映射、band/labels、170×170 viewBox SVG 卡片）；返回模板 contact-maps 容器内追加 ${contactChord}。
+2. [完成] web/styles.css：.contact-chord svg 尺寸 170×170。
+3. [完成] 测试 browser_ranked_models（22→23 项）：chord 卡存在、chord-band 2（链 A/B）、chord-line 2、title 正则（A:5↔B:1 PAE 13 / A:6↔B:1 PAE 6.5）、stroke 集合 {#4fa8d8,#a8c95a}；README 功能句 + model-ui 23 项计数。
+
+验证计划：同 #27 十层链。
+验证结果：browser_ranked_models 23/23 首跑即绿（零调试弧线）；十层链 t1–t10 全绿（全量后端 332 OK/1 skip/74.2s，零后端改动）；手动 diff-scoped SEC-GREP CLEAN。

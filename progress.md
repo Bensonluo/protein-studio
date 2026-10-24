@@ -219,3 +219,9 @@
 - 源：COcaDA 蛋白接触数据库文档（接触图两轴各一条链、每点一对残基、悬停明细、跨链即标准形态）+ ConPlot（Bioinformatics 2021, PMC8428603，接触图/distogram 标准视图）+ LIVIA universal 页（linear contact map 连接物理接触 cLIR 对；PMC13174586）（三源）。
 - 实现：renderChainConfidence 每对链一个小 SVG 接触图——每轴一链（链内序列位置、端点结构残基号刻度、链色 Chain 标签）、每点一对 Cα≤8Å 接触残基（悬停 title=残基身份+PAE）、点色=3D 接触线同款五档 PAE 分带（两视图同读）、五档图例一条；复用 #23 interfaceLines 制品零后端改动；PAE 缺失不画点、索引越界/残基数组缺席整组跳过。
 - 验证：首跑红在测试侧——fixture 原两条 line 落链 A 内部，被产品跨链守卫正确跳过（真实后端只产跨链对），修 fixture 补两条跨链 line（3D 侧因 B 链无 CA 原子自动跳过，#23 断言原样通过）；复跑 browser_ranked_models 22/22 绿；十层链 10/10（后端 332 OK/1 skip/72.8s，零后端改动）；SEC-GREP 手动 diff-scoped CLEAN。English commit: feat: inter-chain 2D contact map。
+
+### 2026-10-25 迭代 #28：环形接触总览（feat: circular contact map overview）
+
+- 源：LIVIA universal+About（Circular Contact Map chord diagram：弧=链∝长度、cLIR 线跨全部链对）+ AlphaBridge ribbon_plot（PDB-REDO，独立同式）+ COcaDA/ConPlot（#27 家族参照）（三源）。
+- 实现：renderChainConfidence 新增 contactChord——弧角∝链残基数、链色带、链标签外置；弦=跨链 Cα≤8Å 接触对、过圆心贝塞尔、五档 PAE 色带与 2D 图/3D 线同语言、悬停 title 同款；与 2D 图同门控（mapGroups 空不渲染）。零后端改动。
+- 验证：browser_ranked_models 23/23 首跑即绿；十层链 10/10（后端 332 OK/1 skip/74.2s）；SEC-GREP 手动 diff-scoped CLEAN。English commit: feat: circular contact map overview。

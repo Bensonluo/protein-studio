@@ -177,8 +177,43 @@ function renderChainConfidence(job,result) {
     }).join('');
     return `<div class="contact-map" data-pair="${escapeHTML(`${a}-${b}`)}" title="链间接触图（COcaDA 接触图惯例：每轴一条链、每个点一对 Cα≤8 Å 接触残基；LIVIA 线性接触图连接同一组 cLIR 对）：点颜色为该对较低方向 PAE 的五档分带，与三维接触线一致；点位置为两条链上的序列位置，读出哪段序列面对哪段">${escapeHTML(a)}↔${escapeHTML(b)} 接触图 · ${group.length} 对<svg viewBox="0 0 160 150" role="img" aria-label="${escapeHTML(`${a} ${b} inter-chain contact map`)}"><rect x="30" y="10" width="124" height="124" fill="#ffffff" stroke="#dfe8da"/><line x1="30" y1="134" x2="154" y2="134" stroke="#8aa6a7"/><line x1="30" y1="10" x2="30" y2="134" stroke="#8aa6a7"/>${dots}<text x="92" y="147" font-size="7" text-anchor="middle" fill="${chainColorOf(a)}">Chain ${escapeHTML(a)}</text><text x="10" y="72" font-size="7" text-anchor="middle" fill="${chainColorOf(b)}" transform="rotate(-90 10 72)">Chain ${escapeHTML(b)}</text><text x="30" y="142" font-size="7" fill="#5b6f62">${escapeHTML(String(axisA[0].residueNumber??1))}</text><text x="154" y="142" font-size="7" fill="#5b6f62" text-anchor="end">${escapeHTML(String(axisA[axisA.length-1].residueNumber??axisA.length))}</text><text x="26" y="137" font-size="7" fill="#5b6f62" text-anchor="end">${escapeHTML(String(axisB[0].residueNumber??1))}</text><text x="26" y="16" font-size="7" fill="#5b6f62" text-anchor="end">${escapeHTML(String(axisB[axisB.length-1].residueNumber??axisB.length))}</text></svg></div>`;
   }).join('');
+  // Circular contact map (LIVIA Circular Contact Map chord diagram;
+  // AlphaBridge ribbon_plot is an independent instance of the same
+  // convention): chain arcs sized by residue count, one chord per
+  // cross-chain contact pair across ALL chain pairs — a single overview
+  // where the per-pair 2D maps need one square per pair. Same five-band
+  // PAE colors as the 2D dots and 3D lines; hover titles identical.
+  const contactChord=mapGroups.size?(()=>{
+    const present=chains.map((c,i)=>c.id||String.fromCharCode(65+i)).filter(id=>resAll.some(r=>r?.chain===id));
+    const members=new Map(present.map(id=>[id,resAll.filter(r=>r?.chain===id)]));
+    const counts=present.map(id=>Math.max(1,members.get(id).length));
+    const total=counts.reduce((sum,v)=>sum+v,0);
+    const gap=present.length>1?Math.min(0.06,0.12/present.length):0;
+    const span=Math.PI*2-gap*present.length;
+    let cursor=-Math.PI/2;
+    const arcs=present.map((id,k)=>{
+      const da=span*counts[k]/total;
+      const arc={id,a0:cursor,da,n:counts[k],color:chainColorOf(id)};
+      cursor+=da+gap;
+      return arc;
+    });
+    const cx=85,cy=85,R=66,inner=62;
+    const point=(arc,index)=>{const t=arc.a0+(index+0.5)/arc.n*arc.da;return `${(cx+Math.cos(t)*inner).toFixed(1)} ${(cy+Math.sin(t)*inner).toFixed(1)}`;};
+    const bandPath=(a0,da,r)=>{const x0=cx+Math.cos(a0)*r,y0=cy+Math.sin(a0)*r,x1=cx+Math.cos(a0+da)*r,y1=cy+Math.sin(a0+da)*r;return `M${x0.toFixed(1)} ${y0.toFixed(1)}A${r} ${r} 0 ${da>Math.PI?1:0} 1 ${x1.toFixed(1)} ${y1.toFixed(1)}`;};
+    const chords=[...mapGroups.values()].flat().map(line=>{
+      const first=resAll[line.i],second=resAll[line.j];
+      const arcA=arcs.find(a=>a.id===first.chain),arcB=arcs.find(a=>a.id===second.chain);
+      if(!arcA||!arcB)return '';
+      const ia=members.get(first.chain).indexOf(first),ib=members.get(second.chain).indexOf(second);
+      if(ia<0||ib<0)return '';
+      return `<path class="chord-line" d="M${point(arcA,ia)}Q${cx} ${cy} ${point(arcB,ib)}" stroke="${lineColor(Number(line.pae))}" stroke-width="0.8" fill="none" opacity="0.85"><title>${escapeHTML(`${first.chain}:${first.residueNumber??''} ${first.aa||'X'} ↔ ${second.chain}:${second.residueNumber??''} ${second.aa||'X'} · Cα≤8 Å · PAE ${Number(line.pae)} Å`)}</title></path>`;
+    }).join('');
+    const band=arcs.map(a=>`<path class="chord-band" d="${bandPath(a.a0,a.da,R)}" stroke="${a.color}" stroke-width="8" fill="none"><title>Chain ${escapeHTML(a.id)} · ${a.n} 残基</title></path>`).join('');
+    const labels=arcs.map(a=>{const mid=a.a0+a.da/2,x=cx+Math.cos(mid)*(R+11),y=cy+Math.sin(mid)*(R+11);return `<text x="${x.toFixed(1)}" y="${(y+2.4).toFixed(1)}" font-size="7" text-anchor="middle" fill="${a.color}">${escapeHTML(a.id)}</text>`;}).join('');
+    return `<div class="contact-map contact-chord" title="环形接触图（LIVIA Circular Contact Map / chord diagram 惯例；AlphaBridge ribbon_plot 同式）：弧=链（弧长∝残基数、链色带），弦=Cα≤8 Å 跨链接触残基对、按较低方向 PAE 五档着色，一图总览全部链对接触；仅主模型">${escapeHTML('全链对接触总览')}<svg viewBox="0 0 170 170" role="img" aria-label="inter-chain contact chord diagram">${chords}${band}${labels}</svg></div>`;
+  })():'';
   const contactLegend=mapGroups.size?`<div class="contact-map-legend">PAE Å：<span><i style="background:#2b6cb0"></i>≤5</span><span><i style="background:#4fa8d8"></i>–10</span><span><i style="background:#a8c95a"></i>–15</span><span><i style="background:#e0c341"></i>–20</span><span><i style="background:#e89a3c"></i>&gt;20</span></div>`:'';
-  return `<section class="panel analysis-panel chain-conf-panel"><div class="panel-heading"><h3>${icon('shield')}链间界面置信度</h3><span class="subtle">CHAIN CONFIDENCE</span></div>${table}${chips}${contactList}<div class="pae-interface-contacts contact-maps">${contactMaps}</div>${contactLegend}<div class="analysis-title-note">逐链 pTM 与平均界面 ipTM · 均值为 AF3 chain_iptm 口径，非对称界面建议结合 PAE 判断</div></section>`;
+  return `<section class="panel analysis-panel chain-conf-panel"><div class="panel-heading"><h3>${icon('shield')}链间界面置信度</h3><span class="subtle">CHAIN CONFIDENCE</span></div>${table}${chips}${contactList}<div class="pae-interface-contacts contact-maps">${contactMaps}${contactChord}</div>${contactLegend}<div class="analysis-title-note">逐链 pTM 与平均界面 ipTM · 均值为 AF3 chain_iptm 口径，非对称界面建议结合 PAE 判断</div></section>`;
 }
 function renderConfidence(result) {
   const sampleCurve=viewerModelInfo().index>0?state.modelCurve:null;

@@ -181,6 +181,15 @@ const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.
   const dotFills=await contactMap.locator('circle').evaluateAll(cs=>cs.map(c=>c.getAttribute('fill')).sort());
   assert.deepEqual(dotFills,['#4fa8d8','#a8c95a']);
   assert.equal(await chainConf.locator('.contact-map-legend').count(),1);
+  const chordCard=chainConf.locator('.contact-chord');
+  assert.equal(await chordCard.count(),1);
+  assert.equal(await chordCard.locator('path.chord-band').count(),2);
+  assert.equal(await chordCard.locator('path.chord-line').count(),2);
+  const chordTitles=await chordCard.locator('path.chord-line').evaluateAll(ps=>ps.map(p=>p.querySelector('title')?.textContent||'').sort());
+  assert.match(chordTitles[0],/A:5 A ↔ B:1 A · Cα≤8 Å · PAE 13/);
+  assert.match(chordTitles[1],/A:6 A ↔ B:1 A · Cα≤8 Å · PAE 6\.5/);
+  const chordStrokes=await chordCard.locator('path.chord-line').evaluateAll(ps=>ps.map(p=>p.getAttribute('stroke')).sort());
+  assert.deepEqual(chordStrokes,['#4fa8d8','#a8c95a']);
   const ifaceBtn=page.locator('#iface-toggle');
   assert.equal(await ifaceBtn.count(),1);
   assert.match(await ifaceBtn.textContent(),/界面残基：关/);
@@ -214,6 +223,7 @@ const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.
   checks.push('Contact-lines toggle draws PAE-colored cylinders between 8 A cross-chain pairs (ChimeraX alphafold contacts convention, 0/5/10/15/20 A bands) on the primary model only and clears them on toggle-off');
   checks.push('Interface color mode grays non-interface residues and keeps the chain color on confident-contact residues (LIVIA Gray non-LIR convention); option only offered for multichain jobs with contact data');
   checks.push('Inter-chain 2D contact map renders one dot per 8 A cross-chain pair with per-pair hover titles and the 3D contact-line PAE bands (COcaDA axis-per-chain convention, LIVIA linear contact map semantics); PAE-less pairs draw no dot');
+  checks.push('Circular contact map renders chain arcs sized by length with one chord per cross-chain contact pair (LIVIA chord diagram / AlphaBridge ribbon_plot convention), same five-band PAE colors and hover titles as the 2D map and 3D lines');
   checks.push('Single-model reference jobs keep the plain viewer without a picker or per-row view actions');
   await page.locator('[data-view="jobs"]').click();
   await page.locator('[data-job-id="job-m"] .row-action').click();
