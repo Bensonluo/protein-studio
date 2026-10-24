@@ -99,3 +99,9 @@
 按 AF3 Server / EBI（结果页全部建模结果打包单 zip）与 ColabFold（完成自动下载 result.zip）两源惯例，补齐单任务交付：GET /api/jobs/{id}/archive 把已注册制品（结构、PAE 缓存与 JSON、输入记录；排除路由标记）打包为 zip 一致快照流式下发，completed-only（409）/未知 404，逐成员仍走 artifact() 路径校验；前端制品面板新增"下载全部 zip"，无制品任务不渲染。README API 表与交付段同步。
 
 验收：test_api 19 项通过（+2 归档：字节一致与标记排除、409/404）；排名模型契约 7/7（+1 归档下载）；全后端 325 发现 OK（1 按需 skip，74.9s）；根 tests OK；campaign_client 通过；隔离 8973 分数契约 12/12、批次回归 9/9；冒烟 12 检查（8974）；另加一轮真实回放归档实测：参考回放任务完成后下载 zip 为 8 成员（主结构 + PAE JSON/缓存 + input/ 记录），testzip 完整性通过，Content-Type/Disposition 头正确。归档为制品文件快照，非 GPU 吞吐声明。演示服务 8973 验收后停止；主服务 8765 未动；无部署。
+
+## 2026-10-24 任务列表置信度列迭代
+
+按 SWISS-MODEL（结果表逐模型质量分列 GMQE/QMEANDisCo）与 AF3 Server（列表/结果按置信分数排列）两源惯例，任务表新增置信度列：已完成任务显示平均 pLDDT（AF DB 四带）与 ipTM（EBI 阈值）分带徽标，ipTM 分带复用 campaigns.js 的 campaignScoreBand 全局函数保持口径同源；未评分/未完成显示占位符不虚构，tooltip 注明口径与多采样任务对应排名 1 主结果的边界。后端零改动（列表摘要在剔除大数组时本就保留置信度标量，新增存储测试断言固化该契约）。README 工作流与 test:model-ui 计数同步。
+
+验收：排名模型契约 8/8（+1 列表置信度：双徽标/单徽标/占位符三分支）；test_api StorageTests 4 项通过（含标量保留断言）；全后端 325 发现 OK（1 按需 skip，76.4s）；根 tests OK；campaign_client 通过；隔离 8973 分数契约 12/12、批次回归 9/9；冒烟 12 检查（8974）；真实 HTTP 复验 /api/jobs 列表已完成任务携带 meanPlddt（实测 93.4）。链中该真实检查档首跑因脚本 heredoc 抢占管道 stdin 未执行（测试 harness 缺陷），定位后独立复跑通过，如实记录。徽标为预测置信元数据而非实验精度。演示服务 8973/8974/8975 用后即停；主服务 8765 未动；无部署。

@@ -213,3 +213,14 @@
 3. [完成] 测试：后端 test_api +2（zip 字节级等于原制品、标记排除；进行中 409 / 未知 404）；浏览器契约 +1（下载事件指向 archive 端点；无制品任务无链接）。README API 表、交付段与测试计数同步。
 
 本轮：语法检查、排名模型契约 7/7（+1 归档）、着色 vm 6/6、workspace-ux 离线 5 套件、隔离 8973 分数契约 12/12、批次回归 9/9、归档真实回放（参考回放任务 completed → 8 成员 zip：P0CG47.pdb、P0CG47_pae.json、.result-artifacts/ PAE 缓存 ×3、input/ ×3；testzip None；application/zip + attachment 头实测）、冒烟 12 检查（8974）、根 tests OK、客户端通过、全后端 325 OK（1 按需 skip，74.9s）。归档为已注册制品的文件快照打包，不代表 GPU 预测吞吐。演示服务用后即停。下一轮候选：PAE 按采样快照、跨采样分数对比视图、任务列表置信度列。
+
+## 2026-10-24 持续迭代：任务列表置信度列
+
+上轮候选落地。依据两源：SWISS-MODEL 结果表每模型带质量分列（GMQE / QMEANDisCo，帮助文档 + Waterhouse 2018 NAR 论文）；AF3 Server 历史列表与结果按置信 ranking_score 排列（EBI Training）。检查发现 /api/jobs 列表摘要在剔除大数组时本就保留 meanPlddt/iptm 标量——"逐个打开任务才能看分数"的扫描断点，零后端改动可补。
+
+1. [完成] 任务表（全部实验 + 最近任务同构造器）新增"置信度"列：已完成任务显示平均 pLDDT（AF DB 四带徽标）与 ipTM（EBI 阈值徽标，复用 campaigns.js 的 campaignScoreBand 全局，同源不漂移）；未评分 / 未完成任务显示占位符，不虚构；tooltip 注明口径与"多采样任务为排名 1 主结果"边界；空行 colspan 同步 6→7。
+2. [完成] 存储测试扩展：store.list 摘要保留置信度标量断言（数组仍剔除）。
+3. [完成] 浏览器契约 +1：任务列表多采样任务 pLDDT+ipTM 双徽标、参考任务单 pLDDT 徽标、排队任务占位符且无徽标。
+4. [完成] README 工作流第 6 项与 test:model-ui 计数（7→8 项）同步。
+
+本轮：语法检查、排名模型契约 8/8（+1 列表置信度）、着色 vm 6/6、workspace-ux 离线 5 套件、隔离 8973 分数契约 12/12、批次回归 9/9、冒烟 12 检查（8974）、根 tests OK、客户端通过、全后端 325 OK（1 按需 skip，76.4s）。真实 HTTP 复验：参考回放完成后 /api/jobs 列表已完成任务均携带 meanPlddt 标量（实测 93.4）；链中该档首跑因自写脚本 heredoc 与管道抢占 stdin 未执行（harness 缺陷非产品缺陷），独立复跑通过并如实记录。徽标为账本置信元数据，不代表实验精度。演示服务用后即停。下一轮候选：PAE 按采样快照、跨采样分数对比视图、任务列表按置信度排序。

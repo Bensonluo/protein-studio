@@ -9,8 +9,9 @@ const atom=(serial,resn,chain,resi,x,y,z,b)=>`ATOM  ${String(serial).padStart(5)
 const pdbPrimary=[...Array(6)].map((_,i)=>atom(i+1,'ALA','A',i+1,1+i*1.2,2,3,88-i*3)).join('\n')+'\nEND\n';
 const pdbModel2=[...Array(10)].map((_,i)=>atom(i+1,'GLY','A',i+1,1+i*1.1,3,4,[92,70,35,64,48,55,81,12,76,39][i])).join('\n')+'\nEND\n';
 const jobs=[
-  {id:'job-m',name:'多采样模型任务',engine:'alphafold3',status:'completed',updatedAt:'2026-10-24T10:00:00Z',chains:[{id:'A',sequence:'ACDEFGHIKL'}]},
-  {id:'job-r',name:'公开参考回放',engine:'reference',status:'completed',updatedAt:'2026-10-24T10:00:00Z',chains:[{id:'A',sequence:'ACDEFG'}]},
+  {id:'job-m',name:'多采样模型任务',engine:'alphafold3',status:'completed',updatedAt:'2026-10-24T10:00:00Z',chains:[{id:'A',sequence:'ACDEFGHIKL'}],result:{sequenceLength:10,meanPlddt:81.0,iptm:0.85}},
+  {id:'job-r',name:'公开参考回放',engine:'reference',status:'completed',updatedAt:'2026-10-24T10:00:00Z',chains:[{id:'A',sequence:'ACDEFG'}],result:{sequenceLength:6,meanPlddt:80.2}},
+  {id:'job-q',name:'排队中任务',engine:'alphafold3',status:'queued',updatedAt:'2026-10-24T10:00:00Z',chains:[{id:'A',sequence:'ACDEFG'}]},
 ];
 const detail={
   'job-m':{...jobs[0],result:{structureUrl:'/api/jobs/job-m/structure',structureFormat:'pdb',sequenceLength:10,meanPlddt:81.0,ptm:0.8,iptm:0.85,rankingScore:0.842,rankingMetric:'0.8 ipTM + 0.2 pTM',plddt:[],residues:[],provenance:{mode:'prediction'},
@@ -80,6 +81,20 @@ const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.
   assert.match(archive.url(),/\/api\/jobs\/job-m\/archive$/);
   checks.push('下载全部 zip triggers a single-archive download of the job artifacts');
   await page.locator('[data-view="jobs"]').click();
+  const multiCell=page.locator('tr[data-job-id="job-m"] td:nth-child(4)');
+  assert.match(await multiCell.innerText(),/81\.0/);
+  assert.match(await multiCell.innerText(),/ipTM 0\.85/);
+  const chips=await multiCell.locator('.campaign-score-band').allTextContents();
+  assert.equal(chips.length,2);
+  assert.match(chips.join('|'),/70–90 置信/);
+  assert.match(chips.join('|'),/≥0\.8 高/);
+  const referenceCell=page.locator('tr[data-job-id="job-r"] td:nth-child(4)');
+  assert.match(await referenceCell.innerText(),/80\.2/);
+  assert.equal(await referenceCell.locator('.campaign-score-band').count(),1);
+  const queuedCell=page.locator('tr[data-job-id="job-q"] td:nth-child(4)');
+  assert.equal((await queuedCell.innerText()).trim(),'—');
+  assert.equal(await queuedCell.locator('.campaign-score-band').count(),0);
+  checks.push('Jobs table confidence column bands pLDDT (AF DB) and ipTM (EBI), muted dash for unscored jobs');
   await page.locator('[data-job-id="job-r"] .row-action').click();
   await page.waitForFunction(()=>document.querySelector('.job-detail-bar strong')?.textContent==='公开参考回放');
   await page.waitForFunction(()=>state.viewer?.getModel()?.selectedAtoms?.({})?.length===6,null,{timeout:15000});

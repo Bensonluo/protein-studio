@@ -303,9 +303,13 @@ class StorageTests(unittest.TestCase):
             arrays = {"pae": [[0.0, 2.0], [3.0, 0.0]],
                       "residues": [{"aa": "A"}, {"aa": "G"}],
                       "plddt": [90.0, 80.0], "rankedModels": [{"rank": 1}]}
-            store.finish(job["id"], "completed", result={"sequenceLength": 2, **arrays})
+            store.finish(job["id"], "completed",
+                         result={"sequenceLength": 2, "meanPlddt": 88.1, "iptm": 0.72, **arrays})
             summary = store.list()[0]["result"]
             self.assertEqual(summary["sequenceLength"], 2)
+            # Confidence scalars survive the summary so job tables can band them.
+            self.assertEqual(summary["meanPlddt"], 88.1)
+            self.assertEqual(summary["iptm"], 0.72)
             for key, value in arrays.items():
                 self.assertNotIn(key, summary)
                 self.assertEqual(store.get(job["id"])["result"][key], value)
