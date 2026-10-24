@@ -559,6 +559,7 @@ class StudioApplication:
                     # mismatch); an unaligned matrix would silently mislabel residues.
                     parsed_confidence.pop("pae")
                     parsed_confidence.pop("interfacePae", None)
+                    parsed_confidence.pop("ipSae", None)
                     parsed_confidence.setdefault("warnings", []).append(
                         f"Imported PAE is {len(pae)}x{len(pae)} but the structure parsed "
                         f"{len(result['residues'])} residues; the matrix was not attached because its "

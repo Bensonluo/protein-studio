@@ -98,6 +98,33 @@ class ResultArtifactsTests(unittest.TestCase):
         self.assertNotIn('interfacePae', parsers.parse_confidence(
             self.source({'pae': [[0, 2], [5, 0]], 'token_chain_ids': [1, 2]})))
 
+    def test_interface_ipsae_follows_dunbrack_2025_convention(self):
+        result = artifacts.stream_confidence(
+            self.source({'pae': [[0, 3], [3, 0]], 'token_chain_ids': ['A', 'B']}), self.root, build_pae=True)
+        # 3 A < cutoff with one qualifying partner: d0 = 1.0, term 1/(1+3^2) = 0.1.
+        self.assertEqual(result['ipSae'], [{'a': 'A', 'b': 'B', 'value': 0.1}])
+        high = artifacts.stream_confidence(
+            self.source({'pae': [[0, 30], [30, 0]], 'token_chain_ids': ['A', 'B']}), self.root, build_pae=True)
+        self.assertEqual(high['ipSae'], [{'a': 'A', 'b': 'B', 'value': 0.0}])
+        directed = artifacts.stream_confidence(
+            self.source({'pae': [[0, 1], [9, 0]], 'token_chain_ids': ['A', 'B']}), self.root, build_pae=True)
+        # A->B sees 1 A (score 0.5) while B->A sees 9 A (score 1/82): the pair keeps the max direction.
+        self.assertEqual(directed['ipSae'], [{'a': 'A', 'b': 'B', 'value': 0.5}])
+        sized = [[0.0] * 31 for _ in range(31)]
+        for index in range(1, 31):
+            sized[0][index] = sized[index][0] = 3.0
+        grown = artifacts.stream_confidence(
+            self.source({'pae': sized, 'token_chain_ids': ['A'] + ['B'] * 30}), self.root, build_pae=True)
+        # 30 qualifying partners cross into the d0 formula: 1.24*cbrt(15)-1.8.
+        self.assertAlmostEqual(grown['ipSae'][0]['value'], 0.1496, places=3)
+        self.assertNotIn('ipSae', artifacts.stream_confidence(
+            self.source({'pae': [[0, 1], [2, 0]], 'token_chain_ids': ['A', 'A']}), self.root, build_pae=True))
+        parsed = parsers.parse_confidence(
+            self.source({'pae': [[0, 3], [3, 0]], 'token_chain_ids': ['A', 'B']}))
+        self.assertEqual(parsed['ipSae'], [{'a': 'A', 'b': 'B', 'value': 0.1}])
+        self.assertNotIn('ipSae', parsers.parse_confidence(
+            self.source({'pae': [[0, 2], [5, 0]], 'token_chain_ids': ['A', 'B', 'C']})))
+
     def test_invalid_matrices_never_publish_or_invent_values(self):
         bad = [[], [[0, 1]], [[0], [2, 0]], [[0, None], [1, 0]], [[0, True], [1, 0]],
                [[0, -1], [1, 0]], [[0, '1'], [1, 0]], [[[0], 1], [1, 0]]]

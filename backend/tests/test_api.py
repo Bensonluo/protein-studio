@@ -274,6 +274,7 @@ class APITests(unittest.TestCase):
         self.assertEqual(status, 201, pae_mismatch)
         self.assertIsNone(pae_mismatch["result"]["pae"])
         self.assertNotIn("interfacePae", pae_mismatch["result"])
+        self.assertNotIn("ipSae", pae_mismatch["result"])
         self.assertNotIn("paeArtifact", pae_mismatch["result"])
         self.assertTrue(any("axes would not align" in w for w in pae_mismatch["result"]["warnings"]))
         status, pae_aligned = self.request("/api/import", "POST", {
@@ -316,7 +317,8 @@ class StorageTests(unittest.TestCase):
                       "residues": [{"aa": "A"}, {"aa": "G"}],
                       "plddt": [90.0, 80.0], "rankedModels": [{"rank": 1}],
                       "chainPtm": [0.82, 0.55], "chainIptm": [0.71, 0.48],
-                      "interfacePae": [{"a": "A", "b": "B", "mean": 3.5}]}
+                      "interfacePae": [{"a": "A", "b": "B", "mean": 3.5}],
+                      "ipSae": [{"a": "A", "b": "B", "value": 0.82}]}
             store.finish(job["id"], "completed",
                          result={"sequenceLength": 2, "meanPlddt": 88.1, "iptm": 0.72, **arrays})
             summary = store.list()[0]["result"]

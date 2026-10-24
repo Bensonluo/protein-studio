@@ -165,3 +165,9 @@
 验证计划：py_compile、定向导入测试、后端 327、根 tests、campaign_client、PAE 契约 16/16、排名模型 15/15、workspace-ux 5 套件、隔离 8973 分数 12/12、批次 9/9、深链 4/4、冒烟 12（8974）。演示服务用后即停；主服务 8765 未动；无部署。
 
 验证结果：十层链路全绿——py_compile、导入定向 2/2、PAE 契约 16/16、排名模型 15/15、workspace-ux 5 套件、隔离 8973 分数 12/12、批次 9/9、深链 4/4、冒烟 12（8974）、根 tests、campaign_client、全后端 327 OK（1 按需 skip）。两次红如实记：夹具缺陷由守卫揪出后对齐修复；mmseqs 心跳测试判负载抖动（隔离 12/12 + 整层 327 复跑绿）。安全 grep 干净。演示服务 8973/8974 用后即停；主服务 8765 未动；无部署。
+
+### 迭代 #19（2026-10-25）：每对链 ipSAE 界面置信度
+
+- 研究：核源发现 ipSAE 定义已从 2023 Cβ≤5Å 演进为 Dunbrack 2025 纯 PAE 公式（PMC11844409 Eq. 14-16），AFDB 已采用同口径展示（PAE<10 Å 且 Cα–Cα<15 Å，分带 ≥0.8/0.7/0.6）；独立佐证 DunbrackLab/IPSAE 与 ProteinIQ。纯 PAE 口径恰与既有 PAE 二进制 + token_chain_ids 管线同构，解析器 CA-only 约束无影响；采用论文公式并在 README 明示与 AFDB 距离限制变体的口径差异。ChimeraX binder 三源（官方文档/prospecting 教程/Trac #17749）留作后续候选。
+- 实现：parsers.ipsae_row_score 内核 + parse_confidence 小矩阵路径；result_artifacts._interface_ipsae 流式路径（同 interfacePae 守卫与超限诚实跳过）；导入失配 pop；store 剥离；前端 chips 追加 ipSAE + AFDB 四分带着色。
+- 验证：10 层链 t1–t10 全绿（全量后端 328 OK/1 skip；browser_ranked_models 16 项）；t7/t8 首跑红系链脚本漏设 STUDIO_URL（连接拒绝、未触达应用代码），隔离服务器补跑 12/12、9/9 绿；SEC-GREP CLEAN。English commit: feat: per-chain-pair ipSAE interface scores。

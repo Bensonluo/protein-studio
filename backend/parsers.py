@@ -206,6 +206,23 @@ def parse_structure(path: Path, source: str = 'unknown') -> dict:
                 ptm=None, iptm=None, confidenceDefinition='C-alpha pLDDT' if plddt else None)
 
 
+IPSAE_PAE_CUTOFF = 10.0
+
+
+def ipsae_row_score(values):
+    """One aligned residue's ipSAE contribution (Dunbrack 2025, Eq. 14-15;
+    the interface metric AlphaFold DB displays): the mean TM-like term over
+    partner residues whose PAE falls below the cutoff, with d0 scaled by the
+    count of qualifying residues (d0 = 1.0 under 27). None when nothing
+    qualifies, which leaves the pair score at the floor 0."""
+    qualifying = [value for value in values if value < IPSAE_PAE_CUTOFF]
+    if not qualifying:
+        return None
+    length = len(qualifying)
+    d0 = 1.24 * (length - 15) ** (1 / 3) - 1.8 if length >= 27 else 1.0
+    return sum(1.0 / (1.0 + (value / d0) ** 2) for value in qualifying) / length
+
+
 def parse_confidence(path: Path) -> dict:
     """Read AF3/ColabFold/AFDB-style JSON without executing Python objects."""
     data = json.loads(_read(Path(path)), parse_constant=lambda value: None)
@@ -257,4 +274,23 @@ def parse_confidence(path: Path) -> dict:
                     counts[key] = counts.get(key, 0) + 1
             result['interfacePae'] = [{'a': a, 'b': b, 'mean': sums[(a, b)] / counts[(a, b)]}
                                       for (a, b) in sorted(sums)]
+            # ipSAE per chain pair (Dunbrack 2025, Eq. 14-16; the metric the
+            # AlphaFold DB displays): per aligned residue the mean TM-like
+            # term over partner residues with PAE < cutoff, d0 scaled by the
+            # qualifying count, then max over each direction. Pairs without
+            # confident contacts score 0.
+            best = {}
+            for i, first in enumerate(chain_ids):
+                row = result['pae'][i]
+                for second in set(chain_ids):
+                    if second == first:
+                        continue
+                    score = ipsae_row_score([row[j] for j, other in enumerate(chain_ids) if other == second])
+                    if score is not None:
+                        key = (first, second)
+                        if score > best.get(key, 0.0):
+                            best[key] = score
+            result['ipSae'] = [{'a': a, 'b': b,
+                                'value': round(max(best.get((a, b), 0.0), best.get((b, a), 0.0)), 4)}
+                               for a, b in sorted({(x, y) for x in set(chain_ids) for y in set(chain_ids) if x < y})]
     return result

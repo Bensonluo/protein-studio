@@ -336,3 +336,16 @@
 验证计划：py_compile、定向导入测试、后端全测 327、根 tests、campaign_client、PAE 契约 16/16、排名模型契约 15/15、workspace-ux 5 套件、隔离 8973 分数 12/12、批次回归 9/9、深链 4/4、冒烟 12（8974）。
 
 验证结果：十层链路全绿（23:55–23:59）：py_compile OK；定向导入测试 2/2；PAE 契约 16/16；排名模型契约 15/15；workspace-ux 5 套件 OK；隔离 8973 分数 12/12、批次回归 9/9、深链 4/4；冒烟 12（8974）；根 tests OK；campaign_client 通过；全后端 327 OK（1 按需 skip）。如实记两次红：①初跑 T10 的 test_proxy_paths 2 errors 系守卫按设计揪出夹具缺陷（见第 5 条），夹具对齐修复后整链重跑；②重跑 T10 的 test_mmseqs_af3_runner 心跳超时测试 1 failure 与本迭代 diff 无交集（导入路径不触 mmseqs 运行器），隔离复跑 12/12 OK + 整层单独复跑 327 OK（84.1s），判负载时序抖动。安全 grep 干净。
+
+## 2026-10-25 持续迭代：每对链 ipSAE 界面置信度（Dunbrack 2025 / AFDB 口径）
+
+上上轮候选（界面高置信接触对）落地前重新核源，发现 ipSAE 语义已演进：2023 预印本的 Cβ≤5Å 定义被 Dunbrack 2025 同行评审公式取代——纯 PAE、无原子距离项，恰与本产品 PAE 二进制 + token_chain_ids 流式管线同构，解析器「只存 CA」的约束对本迭代无影响。依据四源：Dunbrack "Rēs ipSAE loquunt"（PMC11844409，Eq. 14-16：逐对齐残基统计 PAE<cutoff 残基对的 TM 式均值、d0=1.24∛(L−15)−1.8（L<27 取 1.0）随合格残基数缩放、两方向取最大）、AlphaFold DB FAQ（EBI，ipSAE 已为 AFDB 展示指标，PAE<10 Å 且 Cα–Cα<15 Å，解读分带 ≥0.8 很高/≥0.7 较可信/≥0.6 谨慎/<0.6 不可靠）、DunbrackLab/IPSAE GitHub（per-residue 输出 d0res 逐残基变化佐证 d0 口径）、ProteinIQ（独立实现，默认 PAE 截止 10 Å）。设计决策：采用论文公式（PAE<10 Å 截止、无距离限制——AFDB 的 15 Å 距离限制需 token↔残基对齐，索引期不可总验证，README 明示口径差异）；ChimeraX alphafold interfaces（任意原子 ≤4 Å + PAE 较低方向值 ≤5 Å + ≥10 对判 possible binder，rbvi 官方文档 + AlphaFold prospecting 教程页 + Trac #17749 三源已核）保留为后续迭代候选。
+
+1. [完成] 后端内核：parsers.py 增 IPSAE_PAE_CUTOFF=10.0 与 ipsae_row_score()（单对齐残基贡献：合格值均值 TM 式项、d0 随合格数缩放、无合格返回 None）；parse_confidence 小矩阵路径在 interfacePae 同一守卫内产出 result.ipSae=[{a,b,value}]（全链对、无接触=0、round 4 位）。
+2. [完成] 流式路径：result_artifacts.py 增 _interface_ipsae()（行式读 float64 二进制一遍、内存 O(chains²)），与 interfacePae 同条件集成（distinct≥2、≤MAX_CHAINS、≤4M 格）；超限诚实跳过并复用既有警告。
+3. [完成] 契约补齐：server.py 导入失配守卫同步 pop ipSae；store.list() 剥离 $.result.ipSae（detail 保留）。
+4. [完成] 前端：renderChainConfidence chips 追加 ipSAE 值并按 AFDB 分带着色（ipsae-high/mid/low/poor，styles.css 四色），title 注明口径与分带；旧数据（无 ipSae）chip 不追加项，渲染兼容。
+5. [完成] 测试：test_result_artifacts 新增 ipSAE 契约（3Å→0.1 精确值、30 合格过 d0 公式 0.1496、方向取 max 0.5 vs 1/82、无接触=0、单链/未对齐不产出、parse_confidence 双路径一致）；test_api 失配断言 + store 剥离数组加 ipSae；browser_ranked_models 加 ipSae fixture 与 ipSAE 0.85/分带断言（15→16 项）；README 第 6 条与 test:model-ui 计数同步。
+
+验证计划：py_compile → 定向后端（test_result_artifacts/test_api）→ 根 tests → browser_ranked_models → browser_pae_lazy → browser_campaign_scores → browser_campaign（需 STUDIO_URL 隔离服务）→ npm run test:workspace-ux → 全量后端 → 安全 grep。
+验证结果：链 t1–t10 全绿（test_result_artifacts 17 项、test_api 19 项、browser_ranked_models 16 项、pae_lazy 16 项、workspace-ux 5 套件、全量后端 328 OK / 1 skip / 76.2s）；t7/t8 首跑红为链脚本漏设 STUDIO_URL（套件默认打 8765 无服务器，ERR_CONNECTION_REFUSED，未触达应用代码），按既有隔离服务器规程（PROTEIN_STUDIO_PORT=8973 + 临时数据目录、用后即停、主端口 8765 不动）补跑 campaign_scores 12/12、campaign 9/9 全绿；安全 grep 命中均为既有项（.task-actions 类名含 "sk-" 子串、app.js 既有模板渲染 innerHTML 赋值，新增插值全部经 escapeHTML/toFixed），判定 CLEAN。

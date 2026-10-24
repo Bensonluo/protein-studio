@@ -117,12 +117,16 @@ function renderChainConfidence(job,result) {
   // residue pairs with both directed PAE blocks averaged.
   const chains=job?.chains||[], ptm=result?.chainPtm, iptm=result?.chainIptm;
   const iface=Array.isArray(result?.interfacePae)?result.interfacePae.filter(p=>p&&typeof p.a==='string'&&typeof p.b==='string'&&Number.isFinite(p.mean)):[];
+  const ipsae=Array.isArray(result?.ipSae)?result.ipSae.filter(p=>p&&typeof p.a==='string'&&typeof p.b==='string'&&Number.isFinite(p.value)):[];
+  const ipsaeOf=(a,b)=>ipsae.find(p=>(p.a===a&&p.b===b)||(p.a===b&&p.b===a));
+  const ipsaeBand=v=>v>=0.8?'high':v>=0.7?'mid':v>=0.6?'low':'poor';
   const hasTable=chains.length>=2&&(Array.isArray(ptm)||Array.isArray(iptm));
   if(!hasTable&&!iface.length)return '';
   const rows=hasTable?chains.map((c,i)=>{const p=ptm?.[i],t=iptm?.[i],band=typeof campaignScoreBand==='function'?campaignScoreBand(t):null;
     return `<tr><td class="mono">${escapeHTML(c.id||String.fromCharCode(65+i))}</td><td>${Number.isFinite(p)?p.toFixed(2):'—'}</td><td>${band?`<span class="campaign-score-band ${band}">ipTM ${t.toFixed(2)}</span>`:Number.isFinite(t)?t.toFixed(2):'—'}</td></tr>`;}).join(''):'';
   const table=hasTable?`<div class="table-scroll"><table><thead><tr><th>链</th><th>pTM</th><th>平均界面 ipTM</th></tr></thead><tbody>${rows}</tbody></table></div>`:'';
-  const chips=iface.length?`<div class="pae-interface-chips">${iface.map(pair=>`<span class="pae-interface-chip" title="⟨PAE⟩_int：链对间残基对的 PAE 双向块均值（Zhu et al. 2023 口径）；PAE 非对称，均值已抹平方向差异，具体方向以 PAE 矩阵为准">${escapeHTML(pair.a)}↔${escapeHTML(pair.b)} 界面 PAE ${pair.mean.toFixed(1)} Å</span>`).join('')}</div>`:'';
+  const chips=iface.length?`<div class="pae-interface-chips">${iface.map(pair=>{const score=ipsaeOf(pair.a,pair.b);
+    return `<span class="pae-interface-chip" title="⟨PAE⟩_int：链对间残基对的 PAE 双向块均值（Zhu et al. 2023 口径）；PAE 非对称，均值已抹平方向差异，具体方向以 PAE 矩阵为准${score?`；ipSAE：仅统计 PAE&lt;10 Å 残基对的 TM 式得分、取两方向最大（Dunbrack 2025 口径，AlphaFold DB 采用）；解读分带 ≥0.8 很高 / ≥0.7 较可信 / ≥0.6 谨慎 / &lt;0.6 不可靠（AFDB）`:''}">${escapeHTML(pair.a)}↔${escapeHTML(pair.b)} 界面 PAE ${pair.mean.toFixed(1)} Å${score?` · <span class="ipsae-band ipsae-${ipsaeBand(score.value)}">ipSAE ${score.value.toFixed(2)}</span>`:''}</span>`;}).join('')}</div>`:'';
   return `<section class="panel analysis-panel chain-conf-panel"><div class="panel-heading"><h3>${icon('shield')}链间界面置信度</h3><span class="subtle">CHAIN CONFIDENCE</span></div>${table}${chips}<div class="analysis-title-note">逐链 pTM 与平均界面 ipTM · 均值为 AF3 chain_iptm 口径，非对称界面建议结合 PAE 判断</div></section>`;
 }
 function renderConfidence(result) {

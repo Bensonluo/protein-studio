@@ -16,6 +16,8 @@ import sys
 import uuid
 from urllib.parse import quote
 
+from .parsers import ipsae_row_score
+
 try:
     import ijson
 except ModuleNotFoundError as exc:
@@ -333,6 +335,7 @@ def stream_confidence(path, root=None, *, build_pae=False, axis_kind='unknown', 
                 # oversized complexes keep the raw matrix only (honest skip).
                 if distinct <= MAX_CHAINS and row_count * column_count <= 4_000_000:
                     result['interfacePae'] = _interface_pae_means(Path(descriptor['storagePath']), chain_ids)
+                    result['ipSae'] = _interface_ipsae(Path(descriptor['storagePath']), chain_ids)
                 else:
                     result.setdefault('warnings', []).append(
                         'Interface PAE summary skipped (chains or matrix beyond summary limits); raw JSON remains downloadable.')
@@ -506,6 +509,35 @@ def _interface_pae_means(path, chains):
         if counts[(a, b)]:
             summary.append({'a': a, 'b': b, 'mean': sums[(a, b)] / counts[(a, b)]})
     return summary
+
+
+def _interface_ipsae(path, chains):
+    """ipSAE per chain pair (Dunbrack 2025, Eq. 14-16; the metric AlphaFold DB
+    displays), streamed row by row from the row-major little-endian float64
+    binary so memory stays O(chains²): per aligned residue the mean TM-like
+    term over partner residues below the PAE cutoff, then max over each
+    direction. Pairs without confident contacts score 0."""
+    size = len(chains)
+    columns = {}
+    for col, chain in enumerate(chains):
+        columns.setdefault(chain, []).append(col)
+    best = {}
+    with path.open('rb') as stream:
+        for row, chain in enumerate(chains):
+            buffer = array('d')
+            buffer.frombytes(stream.read(size * 8))
+            if len(buffer) != size:
+                raise ValueError('PAE binary ended early while summarizing ipSAE.')
+            if sys.byteorder != 'little':
+                buffer.byteswap()
+            for other, indices in columns.items():
+                if other == chain:
+                    continue
+                score = ipsae_row_score([buffer[index] for index in indices if math.isfinite(buffer[index])])
+                if score is not None and score > best.get((chain, other), 0.0):
+                    best[(chain, other)] = score
+    return [{'a': a, 'b': b, 'value': round(max(best.get((a, b), 0.0), best.get((b, a), 0.0)), 4)}
+            for a, b in sorted({(x, y) for x in columns for y in columns if x < y})]
 
 
 def read_pae(descriptor, root, *, max_size=256, row_start=None, col_start=None, rows=None, cols=None):

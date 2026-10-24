@@ -49,3 +49,8 @@
 .pae-chain-overlay{position:absolute;inset:0;pointer-events:none}
 .pae-chain-line-v{position:absolute;top:0;bottom:0;width:1px;background:rgba(255,255,255,.85);box-shadow:0 0 0 .5px rgba(18,40,48,.4)}
 .pae-chain-line-h{position:absolute;left:0;right:0;height:1px;background:rgba(255,255,255,.85);box-shadow:0 0 0 .5px rgba(18,40,48,.4)}
+.ipsae-band{font-weight:600}
+.ipsae-high{color:#0a6e4f}
+.ipsae-mid{color:#7a5a00}
+.ipsae-low{color:#9a4a00}
+.ipsae-poor{color:#a12622}
