@@ -203,3 +203,13 @@
 4. [完成] 测试：新增 browser_ranked_models.cjs 契约（模拟多采样 AF3 任务 + 单模型参考任务，6 项：选择器标签与默认值、切换重载几何与下载链接、表格动作切回、单模型无选择器、跨任务重置）；置信度着色 vm 回归 +2（B 因子四带着色、全 0 回退按链）。后端零改动（结构 URL 与分数均已存在）。
 
 本轮：语法检查 8 文件、排名模型契约 6/6、着色 vm 6/6、workspace-ux 离线 5 套件、隔离 8973 分数契约 12/12、批次回归 9/9、冒烟 12 检查（8974，需 CHROME_PATH 指向完整 Chrome，headless-shell 未安装）、根 tests OK、客户端通过、全后端 323 OK（1 按需 skip，72.9s）。workspace_ux_live 本轮未跑：其设计目标是常驻主服务（workers 模式 + 已有完成示例），隔离冷起服务不满足前置（自动种子在无 reference worker 时无法完成），历史绿记录对未改动面仍有效，改动面已由冒烟与离线套件覆盖。模拟 API 契约验证 UI 行为，非新预测或 GPU 性能声明。演示服务用后即停。下一轮候选：PAE 按采样快照、跨采样分数对比视图。
+
+## 2026-10-24 持续迭代：结果制品打包下载
+
+上轮候选落地（交付惯例）。依据两源：AlphaFold Server / EBI 结果页把全部建模结果（各采样 mmCIF + 置信度数据）打包成单个 zip 下载；ColabFold 任务完成自动下载 result.zip（ranked 结构/图/分数）。检查发现单任务制品已逐个可下（结构、PAE、制品表逐文件链接），但用户想离线带走时需逐个点击——补单档案交付。
+
+1. [完成] GET /api/jobs/{id}/archive：复用制品注册表（_register_artifacts 的 registry，排除 __structure__ 路由标记），zipfile 打包为 data_dir 下 tempfile 一致快照后流式发送（沿用 campaign export 的 snapshot-then-stream 模式）；仅 completed（409）、未知任务 404、逐成员仍经 artifact() 做路径解析校验，响应带 attachment job-{id}.zip 与快照 scope 头。
+2. [完成] 模型与结果制品面板标题新增"下载全部 zip"：已完成且有制品的任务显示，无制品任务（参考回放单结构）不出现；点击即单次下载整包。
+3. [完成] 测试：后端 test_api +2（zip 字节级等于原制品、标记排除；进行中 409 / 未知 404）；浏览器契约 +1（下载事件指向 archive 端点；无制品任务无链接）。README API 表、交付段与测试计数同步。
+
+本轮：语法检查、排名模型契约 7/7（+1 归档）、着色 vm 6/6、workspace-ux 离线 5 套件、隔离 8973 分数契约 12/12、批次回归 9/9、归档真实回放（参考回放任务 completed → 8 成员 zip：P0CG47.pdb、P0CG47_pae.json、.result-artifacts/ PAE 缓存 ×3、input/ ×3；testzip None；application/zip + attachment 头实测）、冒烟 12 检查（8974）、根 tests OK、客户端通过、全后端 325 OK（1 按需 skip，74.9s）。归档为已注册制品的文件快照打包，不代表 GPU 预测吞吐。演示服务用后即停。下一轮候选：PAE 按采样快照、跨采样分数对比视图、任务列表置信度列。

@@ -22,6 +22,7 @@ import sys
 import tempfile
 import threading
 import time
+import zipfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlsplit
@@ -338,6 +339,34 @@ class StudioApplication:
         if not path.is_relative_to(directory) or not path.is_file():
             raise KeyError("Artifact not available.")
         return path
+
+    def archive(self, job_id):
+        """Bundle one completed job's registered artifacts into a zip snapshot.
+
+        Following the campaign export pattern, the bundle is written to a
+        temporary file inside the data directory and only streamed afterwards,
+        so a slow client never holds the store or engine open.
+        """
+        job = self.store.get(job_id)
+        if job is None:
+            raise KeyError("Task not found.")
+        if job.get("status") != "completed":
+            raise ConflictError("Archive is only available for completed jobs.")
+        registry = job.get("_artifacts") or {}
+        names = sorted(name for name in registry if name != "__structure__")
+        if not names:
+            raise ConflictError("Job has no result artifacts to archive.")
+        handle = tempfile.TemporaryFile(mode="w+b", dir=self.data_dir)
+        try:
+            with zipfile.ZipFile(handle, "w", zipfile.ZIP_DEFLATED) as bundle:
+                for name in names:
+                    bundle.write(self.artifact(job_id, name), name)
+            size = handle.seek(0, os.SEEK_END)
+            handle.seek(0)
+            return handle, size
+        except BaseException:
+            handle.close()
+            raise
 
     def diagnostics(self):
         with self._diagnostics_lock:
@@ -939,6 +968,15 @@ class StudioHandler(BaseHTTPRequestHandler):
                 if method == "GET" and action in {"structure", "artifact"}:
                     name = "__structure__" if action == "structure" else parse_qs(parsed.query).get("name", [""])[0]
                     self._file(self.app.artifact(job_id, name), download=True)
+                    return
+                if method == "GET" and action == "archive":
+                    handle, size = self.app.archive(job_id)
+                    with handle:
+                        self._headers(200, "application/zip", size,
+                                      Content_Disposition=f'attachment; filename="job-{job_id}.zip"',
+                                      X_Export_Scope="consistent-artifact-snapshot")
+                        if self.command != "HEAD":
+                            shutil.copyfileobj(handle, self.wfile, length=64 * 1024)
                     return
         if path.startswith("/api/"):
             raise KeyError("API route not found.")

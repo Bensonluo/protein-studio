@@ -124,6 +124,28 @@ class APITests(unittest.TestCase):
         self.assertEqual(self.request(f"/api/jobs/{job['id']}/structure"), (200, PDB.encode()))
         self.assertEqual(self.request(job["result"]["artifacts"][0]["url"])[1], PDB.encode())
 
+    def test_archive_route_bundles_registered_artifacts(self):
+        import io
+        import zipfile
+        job = self.wait_terminal(self.submit(name="归档任务")["id"])
+        with urllib.request.urlopen(f"{self.base}/api/jobs/{job['id']}/archive", timeout=3) as response:
+            self.assertEqual(response.headers["Content-Type"], "application/zip")
+            self.assertIn("attachment", response.headers["Content-Disposition"])
+            bundle = zipfile.ZipFile(io.BytesIO(response.read()))
+        names = bundle.namelist()
+        self.assertIn(job["result"]["structureFile"], names)
+        self.assertEqual(bundle.read(job["result"]["structureFile"]).decode(), PDB)
+        # The internal structure marker is routing metadata, not a file on disk.
+        self.assertNotIn("__structure__", names)
+
+    def test_archive_requires_completed_artifacts(self):
+        self.engine.block = True
+        running = self.submit(name="还在跑")
+        self.assertEqual(self.request(f"/api/jobs/{running['id']}/archive")[0], 409)
+        self.engine.release.set()
+        self.wait_terminal(running["id"])
+        self.assertEqual(self.request("/api/jobs/nonexistent/archive")[0], 404)
+
     def test_validation_and_same_origin(self):
         self.assertEqual(self.request("/api/jobs", "POST", {"chains": []})[0], 400)
         self.assertEqual(self.request("/api/jobs", "POST", raw=b"{")[0], 400)

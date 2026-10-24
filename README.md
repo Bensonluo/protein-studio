@@ -38,7 +38,7 @@ PROTEIN_STUDIO_PYTHON=/path/to/python3.12 ./start.sh
 3. **资源**：本地独占 GPU 组与认证的远端 worker；按引擎、参数、位置和实测后配置的目标长度上限分发，区分规划 16 卡与真实注册在线节点。
 4. **解析**：PDB / mmCIF、模型排名、pLDDT、PAE、pTM / ipTM（原始输出存在时）。实验结构 B 因子保留其含义。
 5. **可视化**：WebGL 三维 cartoon、球棍及分子表面；按置信度、链或序列光谱着色；多排名采样可在三维视图间切换（下拉列出排名 / 样本名 / pLDDT / 排名分，表格提供"三维查看"，非主排名按结构文件 B 因子即 pLDDT 着色，文件无可用 B 因子时回退按链着色）；旋转、缩放、全屏、截图和残基定位。
-6. **分析与交付**：序列联动、逐残基置信度曲线、PAE 热图数值查询、结构与制品下载、任务 JSON 导出、执行日志。
+6. **分析与交付**：序列联动、逐残基置信度曲线、PAE 热图数值查询、结构与制品下载、"下载全部 zip"打包已注册制品（AF3 Server / ColabFold 的单档案交付惯例）、任务 JSON 导出、执行日志。
 7. **导入**：上传本地 PDB / mmCIF，持久保存并进入同一分析界面。界面可同时导入 PAE、confidence 和 summary JSON，并选择实验 / 预测来源。
 8. **恢复**：SQLite 保存任务与事件；resident campaign 按目标续租、校验回传并恢复失联未完成项，旧尝试不能覆盖新结果；legacy 单任务中断保留失败记录供重试。
 
@@ -139,6 +139,7 @@ curl -X POST http://127.0.0.1:8765/api/jobs \
 | `POST /api/jobs`、`POST /api/jobs/batch` | 单条或批量提交，批量每次最多200条 |
 | `POST /api/jobs/{id}/cancel`、`POST /api/jobs/{id}/retry` | 取消或创建新尝试 |
 | `GET /api/jobs/{id}/structure` | 下载主结构 |
+| `GET /api/jobs/{id}/archive` | 打包下载该任务全部已注册制品（zip 一致快照；仅已完成任务） |
 | `GET /api/jobs/{id}/artifact?name=...` | 下载已注册的任务制品 |
 | `POST /api/import` | 导入结构与可选置信度 |
 | `DELETE /api/jobs/{id}` | 删除已结束任务及其本地结果 |
@@ -189,4 +190,4 @@ tests/          浏览器端到端验证
 
 ### 前端功能与体验检查
 
-本轮提交、批次、结果视图与运维交互修复及验证记录见 [前端体验检查报告](docs/frontend-ux-review.md)。使用 `npm run test:workspace-ux` 运行隔离交互回归；`npm run test:workspace-ux-live` 只读检查当前服务。排名模型切换契约使用 `npm run test:model-ui`（模拟多采样 API，6 项），逐残基着色函数回归在 `npm run test:workspace-ux` 的着色用例中。
+本轮提交、批次、结果视图与运维交互修复及验证记录见 [前端体验检查报告](docs/frontend-ux-review.md)。使用 `npm run test:workspace-ux` 运行隔离交互回归；`npm run test:workspace-ux-live` 只读检查当前服务。排名模型切换契约使用 `npm run test:model-ui`（模拟多采样 API，7 项，含"下载全部 zip"交付检查），逐残基着色函数回归在 `npm run test:workspace-ux` 的着色用例中。

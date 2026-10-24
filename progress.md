@@ -93,3 +93,9 @@
 按 AF3 Server（结果页默认展示最高排名采样、全部采样可查看、ranking_score 排名）与 ColabFold（ranked_0..4、B 因子列即 pLDDT）两源惯例为三维视图补齐采样切换：≥2 采样时 tabline 出现排名选择器（排名/样本名/pLDDT/排名分），默认排名 1；模型表新增排名分列与"三维查看"动作；非主排名按文件 B 因子四带着色、无可用 B 因子回退按链；下载链接与查看状态跟随当前采样；切换任务自动重置。后端零改动（rankedModels 与 artifact URL 均已存在）。
 
 验收：语法 8 文件、排名模型契约 6/6、着色 vm 6/6（+2 B 因子用例）、workspace-ux 离线 5 套件、隔离 8973 分数契约 12/12、批次回归 9/9、冒烟 12 检查（8974 隔离服务）、根 tests OK、campaign_client 通过、全后端 323 OK（1 按需 skip）。两处环境坑已定位非产品缺陷：冒烟需 CHROME_PATH（Playwright headless-shell 二进制未安装）；workspace_ux_live 前置是常驻主服务，本轮主服务未运行故未复跑，历史绿记录对未改动面有效。模拟 API 契约验证 UI 行为，非新预测或 GPU 性能声明。演示服务用后即停；主服务未动，无部署。
+
+## 2026-10-24 结果制品打包下载迭代
+
+按 AF3 Server / EBI（结果页全部建模结果打包单 zip）与 ColabFold（完成自动下载 result.zip）两源惯例，补齐单任务交付：GET /api/jobs/{id}/archive 把已注册制品（结构、PAE 缓存与 JSON、输入记录；排除路由标记）打包为 zip 一致快照流式下发，completed-only（409）/未知 404，逐成员仍走 artifact() 路径校验；前端制品面板新增"下载全部 zip"，无制品任务不渲染。README API 表与交付段同步。
+
+验收：test_api 19 项通过（+2 归档：字节一致与标记排除、409/404）；排名模型契约 7/7（+1 归档下载）；全后端 325 发现 OK（1 按需 skip，74.9s）；根 tests OK；campaign_client 通过；隔离 8973 分数契约 12/12、批次回归 9/9；冒烟 12 检查（8974）；另加一轮真实回放归档实测：参考回放任务完成后下载 zip 为 8 成员（主结构 + PAE JSON/缓存 + input/ 记录），testzip 完整性通过，Content-Type/Disposition 头正确。归档为制品文件快照，非 GPU 吞吐声明。演示服务 8973 验收后停止；主服务 8765 未动；无部署。

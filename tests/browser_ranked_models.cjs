@@ -36,6 +36,7 @@ const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.
     else if(u.pathname==='/api/jobs/job-m/structure')payload={status:200,contentType:'text/plain',body:pdbPrimary};
     else if(u.pathname==='/api/jobs/job-r/structure')payload={status:200,contentType:'text/plain',body:pdbPrimary};
     else if(u.pathname==='/api/jobs/job-m/artifact')payload={status:200,contentType:'text/plain',body:u.searchParams.get('name')==='sample-1.pdb'?pdbModel2:pdbPrimary};
+    else if(u.pathname==='/api/jobs/job-m/archive')payload={status:200,contentType:'application/zip',headers:{'Content-Disposition':'attachment; filename="job-job-m.zip"'},body:Buffer.from([0x50,0x4b,0x03,0x04,0x14,0x00,0x00,0x00,0x08,0x00])};
     else if(u.pathname==='/api/jobs/job-r/artifact')payload={status:200,contentType:'text/plain',body:pdbPrimary};
     else if(u.pathname.startsWith('/api/jobs/')){const record=detail[u.pathname.split('/')[3]];payload=record?json(record):json(null,404);}
     else if(u.pathname==='/api/examples/ubiquitin-afdb')payload=json({name:'Fixture example',chains:[{id:'A',sequence:'ACDEFGHIK'}]});
@@ -73,12 +74,18 @@ const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.
   await page.waitForFunction(()=>state.viewer?.getModel()?.selectedAtoms?.({})?.length===6,null,{timeout:15000});
   assert.equal(await page.locator('#model-select').inputValue(),'0');
   checks.push('The models table 三维查看 action switches the viewer back to rank 1');
+  const archiveDownload=page.waitForEvent('download');
+  await page.locator('a[href*="/archive"]').click();
+  const archive=await archiveDownload;
+  assert.match(archive.url(),/\/api\/jobs\/job-m\/archive$/);
+  checks.push('下载全部 zip triggers a single-archive download of the job artifacts');
   await page.locator('[data-view="jobs"]').click();
   await page.locator('[data-job-id="job-r"] .row-action').click();
   await page.waitForFunction(()=>document.querySelector('.job-detail-bar strong')?.textContent==='公开参考回放');
   await page.waitForFunction(()=>state.viewer?.getModel()?.selectedAtoms?.({})?.length===6,null,{timeout:15000});
   assert.equal(await page.locator('#model-select').count(),0);
   assert.equal(await page.locator('[data-view-model]').count(),0);
+  assert.equal(await page.locator('a[href*="/archive"]').count(),0);
   checks.push('Single-model reference jobs keep the plain viewer without a picker or per-row view actions');
   await page.locator('[data-view="jobs"]').click();
   await page.locator('[data-job-id="job-m"] .row-action').click();
