@@ -24,7 +24,7 @@ const icons = {
 const icon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name] || icons.molecule}</svg>`;
 const $ = selector => document.querySelector(selector);
 const escapeHTML = text => String(text ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const state = {view:'studio', jobs:[], selectedId:null, job:null, system:{engines:[]}, engines:[], example:null, selectedEngine:'reference', viewer:null, style:'cartoon', color:'confidence', spinning:false, light:false, selectedResidue:null, search:'', filter:'all', pending:false, autoSeeded:false, sources:[], error:null, engineDrafts:{}, parametersEngine:null, submitting:false, selectionRequest:0, modelIndex:0, modelJobId:null, jobsSort:'recent', lowConf:0, iface:false, contactLines:false, contactLineCount:0, polling:false};
+const state = {view:'studio', jobs:[], selectedId:null, job:null, system:{engines:[]}, engines:[], example:null, selectedEngine:'reference', viewer:null, style:'cartoon', color:'confidence', spinning:false, light:false, selectedResidue:null, search:'', filter:'all', pending:false, autoSeeded:false, sources:[], error:null, engineDrafts:{}, parametersEngine:null, submitting:false, selectionRequest:0, modelIndex:0, modelJobId:null, jobsSort:'recent', lowConf:0, iface:false, contactLines:false, contactLineCount:0, polling:false, ifaceFocus:null};
 const statusLabels = {completed:'已完成',running:'运行中',queued:'排队中',failed:'失败',cancelled:'已取消'};
 const engineNames = {reference:'参考结构',alphafold2:'AlphaFold 2',alphafold3:'AlphaFold 3',colabfold:'ColabFold',import:'结构导入'};
 const views = {studio:['结构工作台','从序列，到结构。','连接预测、计算与发现，探索蛋白质的三维世界。'],jobs:['任务队列','每一次探索，都有迹可循。','管理预测任务，查看执行进展、参数与交付结果。'],pipeline:['预测管线','让科学计算，流动起来。','从输入校验到结果交付，连接每一个计算阶段。'],sources:['研究与依据','站在开放科学的肩膀上。','采用经过核查的官方实现，让技术选择与结果来源可追溯。'],environment:['运行环境','为真实计算，做好准备。','检查引擎可用状态，将工作台连接到你的 GPU 与预测环境。']};
@@ -153,7 +153,7 @@ function renderChainConfidence(job,result) {
       lscore&&Number.isFinite(lscore.pdockq2)?` · <span class="ipsae-band ipsae-${pdockq2Band(lscore.pdockq2)}">pDockQ2 ${lscore.pdockq2.toFixed(2)}</span>`:''].join('');
     return `<span class="pae-interface-chip" title="${tip}">${spans}</span>`;}).join('')}</div>`:'';
   const fmtRanges=r=>r.filter(x=>Array.isArray(x)&&x.length===2&&Number.isInteger(x[0])&&Number.isInteger(x[1])).map(x=>x[0]===x[1]?`${x[0]+1}`:`${x[0]+1}–${x[1]+1}`).join(', ');
-  const contactList=contacts.length?`<div class="pae-interface-contacts">${contacts.map(p=>`<div class="pae-contact-row" title="高置信界面接触对：PAE&lt;10 Å 且 Cα&lt;15 Å（两方向取较低 PAE，AFDB ipSAE 对口径）；残基号为 1 起的结构序号（ChimeraX alphafold interfaces 亦按参与残基汇报）">${escapeHTML(p.a)}↔${escapeHTML(p.b)}：高置信接触 ${p.pairs} 对 · ${escapeHTML(p.a)} 残基 ${escapeHTML(fmtRanges(p.resA))} · ${escapeHTML(p.b)} 残基 ${escapeHTML(fmtRanges(p.resB))}</div>`).join('')}</div>`:'';
+  const contactList=contacts.length?`<div class="pae-interface-contacts">${contacts.map(p=>`<div class="pae-contact-row" title="高置信界面接触对：PAE&lt;10 Å 且 Cα&lt;15 Å（两方向取较低 PAE，AFDB ipSAE 对口径）；残基号为 1 起的结构序号（ChimeraX alphafold interfaces 亦按参与残基汇报）">${escapeHTML(p.a)}↔${escapeHTML(p.b)}：高置信接触 ${p.pairs} 对 · ${escapeHTML(p.a)} 残基 ${escapeHTML(fmtRanges(p.resA))} · ${escapeHTML(p.b)} 残基 ${escapeHTML(fmtRanges(p.resB))}<button type="button" class="iface-focus-btn" data-a="${escapeHTML(p.a)}" data-b="${escapeHTML(p.b)}" title="聚焦相机至该链对界面残基（Mol*「选中即聚焦」/ ChimeraX view spec 惯例：平移+缩放+裁剪面包裹界面残基包围盒）；再次点击复位全貌。仅主模型可用">聚焦界面</button></div>`).join('')}</div>`:'';
   // Inter-chain 2D contact map (COcaDA convention: one axis per chain, one
   // dot per contacting residue pair; the contact-map form is standard in
   // ConPlot/Bioinformatics, and LIVIA's linear contact map connects the
@@ -455,6 +455,49 @@ function interfaceContactSelection() {
   }
   return groups.size?[...groups].map(([chain,set])=>({chain,resi:[...set]})):null;
 }
+function interfacePairSelection(a,b){
+  // One chain pair's interface residues as {chain,resi[]} groups, expanded
+  // from the same backend confident-contact ranges the highlight uses.
+  if(viewerModelInfo().index>0)return null;
+  const list=state.job?.result?.interfaceContacts;
+  if(!Array.isArray(list))return null;
+  const pair=list.find(p=>p&&(p.a===a&&p.b===b||p.a===b&&p.b===a));
+  if(!pair)return null;
+  const groups=new Map(),residues=getResidues();
+  for(const range of [...(pair.resA||[]),...(pair.resB||[])]){
+    if(!Array.isArray(range)||range.length!==2||!Number.isInteger(range[0])||!Number.isInteger(range[1]))continue;
+    for(let index=Math.max(0,range[0]);index<=Math.min(residues.length-1,range[1]);index++){
+      const residue=residues[index];if(!residue)continue;
+      const chain=String(residue.chain??'').trim()||'A',number=Number(residue.residueNumber);
+      if(!Number.isInteger(number))continue;
+      if(!groups.has(chain))groups.set(chain,new Set());
+      groups.get(chain).add(number);
+    }
+  }
+  return groups.size?[...groups].map(([chain,set])=>({chain,resi:[...set]})):null;
+}
+function focusInterfacePair(a,b,btn){
+  // Focus the camera on one pair's interface residues (Mol* "focus adjusts
+  // the camera and center of rotation on the selection"; ChimeraX view
+  // spec). 3Dmol zoomTo(sel) centers on the selection's bounding box and
+  // sets the slab for it; the same click toggles back to the full scene.
+  const viewer=state.viewer;
+  if(!viewer||viewerModelInfo().index>0)return;
+  const groups=interfacePairSelection(a,b);
+  if(!groups)return;
+  const key=[a,b].sort().join('|');
+  document.querySelectorAll('.iface-focus-btn.active').forEach(el=>el.classList.remove('active'));
+  if(state.ifaceFocus===key){
+    state.ifaceFocus=null;viewer.zoomTo();viewer.zoom(1.07);viewer.render();
+    return;
+  }
+  const want=new Map(groups.map(g=>[g.chain,new Set(g.resi)]));
+  const sel={predicate:atom=>{const set=want.get(String(atom.chain||'A'));return !!set&&set.has(atom.resi);}};
+  const atoms=viewer.selectedAtoms?.(sel)||[];
+  if(!atoms.length)return; // no matching atoms in this model: never zoom to an empty selection
+  state.ifaceFocus=key;btn?.classList.add('active');
+  viewer.zoomTo(sel);viewer.render();
+}
 let paeHoverPair=null,paeSelection=null;
 // PAE-plot hover linkage (Jalview convention: mousing over the matrix
 // highlights the row/col residues in every linked view; PAE Viewer colors the
@@ -677,7 +720,12 @@ function bindViewEvents() {
   });
   $('#model-select')?.addEventListener('change',e=>switchViewerModel(Number(e.target.value)));
   document.querySelectorAll('[data-view-model]').forEach(el=>el.addEventListener('click',()=>switchViewerModel(Number(el.dataset.viewModel))));
+  // renderMain re-runs this per render for fresh per-element bindings; the
+  // document-level delegation listeners must register once or every render
+  // stacks another copy and a single click fires N times.
+  if(!bindViewEvents.bound){bindViewEvents.bound=true;
   document.addEventListener('click',e=>{const sort=e.target.closest('[data-jobs-sort]');if(sort){state.jobsSort=state.jobsSort==='confidence'?'recent':'confidence';refreshJobsTable();}});
+  document.addEventListener('click',e=>{const focus=e.target.closest('.iface-focus-btn');if(focus)focusInterfacePair(focus.dataset.a,focus.dataset.b,focus);});}
   $('#rotate-view')?.addEventListener('click',()=>{state.spinning=!state.spinning;state.viewer?.spin(state.spinning?'y':false,.3);$('#rotate-view').classList.toggle('active',state.spinning);});
   $('#reset-view')?.addEventListener('click',()=>{state.viewer?.zoomTo();state.viewer?.render();});
   $('#light-view')?.addEventListener('click',()=>{state.light=!state.light;state.viewer?.setBackgroundColor(state.light?'#edf1e9':'#102a34');$('#viewer-container').classList.toggle('light-viewer',state.light);state.viewer?.render();});

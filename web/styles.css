@@ -56,6 +56,9 @@
 .ipsae-poor{color:#a12622}
 .pae-interface-contacts{margin-top:6px;font-size:10px;color:#40554a;display:grid;gap:4px}
 .pae-contact-row{background:#f4f7f2;border:1px solid #e0e8da;border-radius:5px;padding:3px 8px}
+.iface-focus-btn{margin-left:8px;padding:1px 7px;border:1px solid #b9cdbf;border-radius:4px;background:#fff;font-size:9px;color:#40554a;cursor:pointer;vertical-align:1px}
+.iface-focus-btn:hover{border-color:#6e8f79}
+.iface-focus-btn.active{background:#2b6c4f;border-color:#2b6c4f;color:#fff}
 .residue.pae-hover-row{outline:2px solid #22c4cf;outline-offset:-1px;background:rgba(34,196,207,.28);border-radius:2px}
 .residue.pae-hover-col{outline:2px solid #f0863c;outline-offset:-1px;background:rgba(240,134,60,.28);border-radius:2px}
 .pae-selection{position:absolute;border:1px solid #22c4cf;background:rgba(34,196,207,.14);pointer-events:none;box-sizing:border-box}

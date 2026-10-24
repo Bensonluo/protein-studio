@@ -28,7 +28,7 @@ const detail={
 const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.stringify(data)});
 (async()=>{
   await fs.mkdir(out,{recursive:true});
-  server=http.createServer(async(req,res)=>{try{const pathname=new URL(req.url,'http://localhost').pathname;const file=path.resolve(root,'web',pathname==='/'?'index.html':pathname.slice(1));if(!file.startsWith(path.join(root,'web')+path.sep))throw Error();const bytes=await fs.readFile(file);res.writeHead(200,{'Content-Type':({'.html':'text/html','.js':'text/javascript','.css':'text/css'})[path.extname(file)]||'application/octet-stream'});res.end(bytes);}catch{res.writeHead(404).end();}});
+  server=http.createServer(async(req,res)=>{try{const pathname=new URL(req.url,'http://localhost').pathname;const file=path.resolve(root,'web',pathname==='/'?'index.html':pathname.slice(1));if(!file.startsWith(path.join(root,'web')+path.sep))throw Error();const bytes=await fs.readFile(file);res.writeHead(200,{'Cache-Control':'no-store','Content-Type':({'.html':'text/html','.js':'text/javascript','.css':'text/css'})[path.extname(file)]||'application/octet-stream'});res.end(bytes);}catch{res.writeHead(404).end();}});
   await new Promise(r=>server.listen(0,'127.0.0.1',r));
   browser=await chromium.launch({executablePath:process.env.CHROME_PATH||'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:true,args:['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
   const page=await browser.newPage({viewport:{width:1536,height:1080}});
@@ -64,6 +64,7 @@ const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.
   const rank1Panel=await page.locator('.analysis-panel:not(.pae-panel)').textContent();
   assert.match(rank1Panel,/81\.0/);
   assert.equal(await page.locator('.sequence-row .residue.iface-contact').count(),0);
+  assert.equal(await page.locator('.iface-focus-btn').count(),0);
   assert.doesNotMatch(rank1Panel,/B 因子/);
   checks.push('Model picker lists every ranked sample with its AF3-style rank, pLDDT and ranking score, rank 1 selected by default');
   assert.equal(await page.locator('.chain-conf-panel').count(),0);
@@ -194,6 +195,17 @@ const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.
   assert.match(chordTitles[1],/A:6 A ↔ B:1 A · Cα≤8 Å · PAE 6\.5/);
   const chordStrokes=await chordCard.locator('path.chord-line').evaluateAll(ps=>ps.map(p=>p.getAttribute('stroke')).sort());
   assert.deepEqual(chordStrokes,['#4fa8d8','#a8c95a']);
+  const focusBtn=chainConf.locator('.iface-focus-btn[data-a="A"][data-b="B"]');
+  assert.equal(await focusBtn.count(),1);
+  assert.match(await focusBtn.getAttribute('title'),/聚焦相机至该链对界面残基/);
+  // force:true keeps Playwright's actionability retry from double-firing
+  // this toggle (zoomTo re-renders shift the panel between checks)
+  await focusBtn.click({force:true});
+  await page.waitForFunction(()=>state.ifaceFocus==='A|B');
+  assert.equal(await chainConf.locator('.iface-focus-btn.active').count(),1);
+  await focusBtn.click({force:true});
+  await page.waitForFunction(()=>state.ifaceFocus===null);
+  assert.equal(await chainConf.locator('.iface-focus-btn.active').count(),0);
   const markedResidues=page.locator('.sequence-row .residue.iface-contact');
   assert.equal(await markedResidues.count(),6);
   const markedInfo=await markedResidues.evaluateAll(sp=>sp.map(s=>({i:s.getAttribute('data-residue'),color:(s.getAttribute('style')||'').match(/border-bottom-color:(#[0-9a-f]{6})/)?.[1]||null})));
@@ -237,6 +249,7 @@ const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.
   checks.push('Circular contact map renders chain arcs sized by length with one chord per cross-chain contact pair (LIVIA chord diagram / AlphaBridge ribbon_plot convention), same five-band PAE colors and hover titles as the 2D map and 3D lines');
   checks.push('Sequence row marks confident interface-contact residues with a chain-palette underline and tooltip tag (LIVIA sequence-viewer LIR/cLIR highlighting, ProSAT+/RCSB sequence-feature mapping convention); absent without contact data and on sample views via the shared primary-model selection guard');
   checks.push('Interface chips render pDockQ and pDockQ2 with DockQ-class bands (Bryant et al. 2022; Zhu et al. 2023; CA-for-CB variant and AFM over-prediction caveats in the tooltip); keys absent when pLDDT or contact-cell PAE are missing');
+  checks.push('Per-chain-pair focus button re-centers the camera on that pair\'s interface residues and toggles back to the full scene (Mol* focus-on-selection / ChimeraX view spec convention, 3Dmol zoomTo with an interface selection); gated to the primary model and absent without contact data');
   checks.push('Single-model reference jobs keep the plain viewer without a picker or per-row view actions');
   await page.locator('[data-view="jobs"]').click();
   await page.locator('[data-job-id="job-m"] .row-action').click();

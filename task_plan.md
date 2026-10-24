@@ -472,3 +472,13 @@
 4. [完成] README.md：chips 描述句 + 公式/变体/警示说明 + model-ui 25 项计数。
 
 验证计划：同 #29 十层链（/tmp/verify30.sh）。
+
+## 2026-10-25 持续迭代：界面聚焦相机 + 委托监听器幂等修复
+
+#30 后界面分析维度齐全（表/chips/2D/chord/序列/3D），缺「从分析跳到 3D 位置」的动线。依据三源：3Dmol.js 官方文档（GLViewer.zoomTo(sel,animationDuration)——zoom to center of atom selection、slab 随选择、空选择=全场景；AtomSelectionSpec 官方 predicate 字段「user supplied function passed AtomSpec → boolean」；specs.ts resi 区间/列表语法）；ChimeraX view/Focus 官方文档（focus=平移+缩放+裁剪面包裹选中项包围盒；官方邮件列表确认菜单从 View 改名 Focus 的语义理由）；Mol* Maneuvering 官方文档（focus 调整相机与旋转中心到选中原子/残基，选中即聚焦惯例）。设计决策：接触行每链对一「聚焦界面」按钮；选择=interfacePairSelection（interfaceContacts 该链对 resA/resB 区间→{chain,resi[]}，与高亮同集）；predicate 复合选择两链界面残基；zoomTo(sel) 即时聚焦（Mol* 聚焦本即瞬时，不用动画）；同键再点=toggle-off 回全貌（zoomTo()+zoom(1.07) 与初始一致）；selectedAtoms 预检为空不聚焦（绝不 zoomTo 空选择——官方文档：空选择无 slab）；仅主模型（viewerModelInfo().index 守卫与 #21/#29 同源）。
+
+1. [完成] web/app.js：interfacePairSelection(a,b)（区间展开同 interfaceContactSelection、单链对过滤）+ focusInterfacePair(a,b,btn)（toggle 状态 state.ifaceFocus、predicate 选择、active 类、zoomTo）；contactList 每行追加按钮；bindViewEvents 区块新增委托监听器。
+2. [完成] web/styles.css：.iface-focus-btn（与图/表同视觉语言）+ .active 态。
+3. [完成] 测试 browser_ranked_models（25→26 项）：按钮存在+title 惯例注；click→state.ifaceFocus==='A|B' + active 类；再点→null + active 清除（force:true——Playwright actionability 重试会双派发该 toggle，注释说明）；job-m 无接触数据零按钮；README 功能句 + model-ui 26 项计数。
+
+验证计划：同 #30 十层链（/tmp/verify31.sh）。
