@@ -183,3 +183,9 @@
 - 研究：PyMOL show sticks, byres … within N of 惯例（四源：Medium 教程、Reddit 实践、pymol.org 官方 Selection Operator 表、InterfaceResidues 脚本）；3Dmol addStyle 官方核心 API 叠加式表示；仅主模型（采样是另一结构）。
 - 实现：#iface-toggle + interfaceContactSelection（区间钳制、整数 residueNumber 过滤、链分组）+ applyViewerStyle addStyle stick 强调色叠加 + surface 双守卫；测试 fixture 补 residueNumber（fallback 无残基号选不中原子），18 项断言含选中原子 style 断言与采样视图按钮缺席。
 - 验证：十层链 t1–t10 全绿（全量后端 330 OK/1 skip/74.0s；browser_ranked_models 18 项首跑即绿；campaign 12/12、9/9）；链内 SEC-GREP 假阴性已手动复扫 CLEAN。English commit: feat: interface contact residue highlight in 3D viewer。
+
+### 迭代 #22（2026-10-25）：PAE 热图悬停残基身份与联动高亮
+
+- 研究：Jalview（hover→tooltip+linked views）、PAE Viewer PMC10320053（青/橙双色打分/对齐约定）、ChimeraX #17112（双色惯例）、EBI AFDB（联动标配）；hover 联动不动 click 既有窗口契约。
+- 实现：pae-viewer 残基身份守卫（token 不猜、unknown 轴仅 inline 放行）+ tooltip 身份 + setPAEHover；app.js 序列条双类 + applyViewerStyle 双色球棍（主模型/非 surface 守卫、key 去重、移出即清）。
+- 验证：pae_lazy 18/18 ×2 首跑即绿（含 3D 双色原子断言与 token 负例）；十层链 10/10（全量后端 330 OK/1 skip/74.8s）；SEC-GREP 手动复扫 CLEAN。English commit: feat: PAE hover residue identity and linked highlighting。

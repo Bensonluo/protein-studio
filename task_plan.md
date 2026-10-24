@@ -372,3 +372,14 @@
 
 验证计划：同 #20 十层链（STUDIO_URL 隔离服务器烘入脚本）。
 验证结果：t1–t10 全绿（全量后端 330 OK / 1 skip / 74.0s；browser_ranked_models 18 项首跑即绿；campaign_scores 12/12、campaign 9/9）。链内 SEC-GREP 因 BSD grep 无 -P 报错落入 CLEAN 分支为假阴性，手动 diff-scoped 复扫确认 CLEAN（新增插值全部 escapeHTML/textContent/整数格式化）。
+
+## 2026-10-25 持续迭代：PAE 热图悬停残基身份与联动高亮
+
+#21 后继续补齐 PAE 图交互短板。业界现状四源：Jalview 官方帮助（悬停矩阵显示值域 tooltip 且联动视图中高亮对应 3D 位置、点击选中行列）；PAE Viewer webserver（PMC10320053，悬停/点击残基对联动 3D+序列；打分行残基青色、对齐列残基橙色双色区分——优于 AFDB 两区间同色的方案；选中区下方数值化汇报）；ChimeraX 工单 #17112（拖框对结构两部分 magenta/lime 双色，用户实测确认）；EBI AFDB 官方培训页（PAE 图与 Mol* 联动为标配）。设计决策：沿用 Jalview 的 hover 即联动（click 保持既有「读局部窗口」契约不动，避免破坏 #16/#17 测试）；双色采用 PAE Viewer 青/橙；对齐诚实度与 #20 同标准——只有轴与残基可证对齐才联动（descriptor 必须明示 residue 轴且行数==残基数；inline 矩阵经 #18 导入守卫验证；token 轴只标注链或纯索引，绝不猜残基）；仅主模型（采样为另一结构）；Surface 不参与。
+
+1. [完成] web/pae-viewer.js：residueIdentity() 守卫（token→null；axisKind 非 residue 且非 inline→null；长度必须行==列==残基数）；mousemove tooltip 追加「行残基 链:号 氨基酸 · 列残基 …」，token 轴退化为「行链 A · 列链 B」；residue 对齐时调用 window.setPAEHover({row,col})；mouseleave 清联动并还原 paint() 记录的模式化提示语（session.tip）；stop() 挂载切换时清联动。
+2. [完成] web/app.js：模块级 paeHoverPair + window.setPAEHover（key 去重——同一格 mousemove 不重绘；序列条 .pae-hover-row/.pae-hover-col 类管理）；applyViewerStyle 尾部悬停块（主模型 + 非 surface 守卫；行残基球棍 #22c4cf 青、列残基 #f0863c 橙、整数 residueNumber 才收）；styles.css 两类描边样式。
+3. [完成] 测试 browser_pae_lazy（16→18 项）：token 负例（无残基身份、序列条零高亮）；对齐 inline 正例（tooltip 精确断言 行 2 / 列 1 · 3.5 Å · 行残基 A:2 D · 列残基 A:1 C；序列条两类各 1；移出画布清除）；3D 双色原子断言（waitForFunction：resi=2 全原子 sphere #22c4cf、resi=1 全 #f0863c、其余无 sphere；移出后全清）。
+
+验证计划：同 #21 十层链。
+验证结果：pae_lazy 18/18 首跑即绿 ×2；十层链 t1–t10 全绿（全量后端 330 OK / 1 skip / 74.8s）。诚实记录：首链因自审发现 descriptor axisKind=unknown 时仅凭长度匹配放行联动的守卫漏洞被主动废弃（与 #20「明示 residue 轴才可信」先例不一致），杀链修守卫（unknown 仅 inline 放行）后重跑全绿；链内 SEC-GREP 仍为 BSD grep -P 假阴性，手动 diff-scoped 复扫 CLEAN。

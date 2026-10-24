@@ -348,6 +348,22 @@ function interfaceContactSelection() {
   }
   return groups.size?[...groups].map(([chain,set])=>({chain,resi:[...set]})):null;
 }
+let paeHoverPair=null;
+// PAE-plot hover linkage (Jalview convention: mousing over the matrix
+// highlights the row/col residues in every linked view; PAE Viewer colors the
+// scored row cyan and the aligned column orange). Only provably aligned axes
+// link - token axes address model tokens, not residues, so they never guess.
+window.setPAEHover=pair=>{
+  const key=pair?`${pair.row}|${pair.col}`:null;
+  if(key===null){if(paeHoverPair===null)return;paeHoverPair=null;}
+  else{if(paeHoverPair&&paeHoverPair.key===key)return;paeHoverPair={key,...pair};}
+  document.querySelectorAll('.residue.pae-hover-row,.residue.pae-hover-col').forEach(el=>el.classList.remove('pae-hover-row','pae-hover-col'));
+  if(paeHoverPair){
+    document.querySelector(`[data-residue="${paeHoverPair.row}"]`)?.classList.add('pae-hover-row');
+    document.querySelector(`[data-residue="${paeHoverPair.col}"]`)?.classList.add('pae-hover-col');
+  }
+  applyViewerStyle();
+};
 function bFactorResidueCurve() {
   // Per-residue pLDDT for the selected non-primary sample, read from CA B factors
   // under the same AF2/ColabFold/AF3 convention as bFactorConfidenceColorer.
@@ -389,6 +405,11 @@ function applyViewerStyle() {
     const groups=interfaceContactSelection();
     if(groups)for(const group of groups)
       v.addStyle({chain:group.chain,resi:group.resi},{stick:{radius:.18,color:'#f0863c'}});
+  }
+  if(paeHoverPair&&state.style!=='surface'&&viewerModelInfo().index===0){
+    const residues=getResidues();
+    const mark=(index,color)=>{const residue=residues[index];if(!residue)return;const chain=String(residue.chain??'').trim()||'A',number=Number(residue.residueNumber);if(!Number.isInteger(number))return;v.addStyle({chain,resi:number},{sphere:{radius:1.4,color},stick:{radius:.14,color}});};
+    mark(paeHoverPair.row,'#22c4cf');mark(paeHoverPair.col,'#f0863c');
   }
   v.render();
 }

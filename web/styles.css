@@ -56,3 +56,5 @@
 .ipsae-poor{color:#a12622}
 .pae-interface-contacts{margin-top:6px;font-size:10px;color:#40554a;display:grid;gap:4px}
 .pae-contact-row{background:#f4f7f2;border:1px solid #e0e8da;border-radius:5px;padding:3px 8px}
+.residue.pae-hover-row{outline:2px solid #22c4cf;outline-offset:-1px;background:rgba(34,196,207,.28);border-radius:2px}
+.residue.pae-hover-col{outline:2px solid #f0863c;outline-offset:-1px;background:rgba(240,134,60,.28);border-radius:2px}

@@ -20,6 +20,17 @@
     return {inline:matrix,rows:matrix?.length||0,cols:matrix?.[0]?.length||0,axisKind:'unknown',available:!!matrix&&positive(matrix[0]?.length),key:matrix,max:finite(result.maxPae)&&result.maxPae>0?result.maxPae:null};
   }
   function axis(s){return s.axisKind==='token'?'模型 token':s.axisKind==='residue'?'残基索引':'模型索引';}
+  // Residue identity for tooltips/linked highlighting. Inline matrices reach
+  // this panel only after the import guard proved row-for-residue alignment;
+  // descriptors must declare a residue axis of matching size - an axis kind of
+  // "unknown" is trusted for inline data only. Token axes never resolve to
+  // residues, so they stay index-only (chain label when known).
+  function residueIdentity(spec,residues){
+    if(spec.axisKind==='token')return null;
+    if(spec.axisKind!=='residue'&&!spec.inline)return null;
+    if(!Array.isArray(residues)||residues.length!==spec.rows||spec.rows!==spec.cols)return null;
+    return residues;
+  }
   function downloads(s){const d=s.descriptor||{},url=localUrl(d.downloadUrl),binary=localUrl(d.binaryDownloadUrl);return `${url?`<a class="text-button pae-download" href="${text(url.pathname+url.search)}" download>下载矩阵来源 JSON ↗</a>`:''}${binary?`<a class="text-button pae-download" href="${text(binary.pathname+binary.search)}" download>下载矩阵制品 ↗</a>`:''}`;}
   function dimension(s){return positive(s.rows)&&positive(s.cols)?`${s.rows.toLocaleString('zh-CN')} × ${s.cols.toLocaleString('zh-CN')}`:'尺寸未提供';}
   function renderInspector(result){
@@ -36,7 +47,7 @@
     if(!s.available)return `<section class="panel analysis-panel pae-panel">${intro}<div class="empty-analysis">${icon('grid')}<strong>${s.descriptor?'PAE 暂不可预览':'暂无 PAE 数据'}</strong><p>${text(s.descriptor?.reason||'预测输出包含 PAE 后可显示；不从三维坐标推算。')}</p></div><div class="pae-downloads">${downloads(s)}</div></section>`;
     return `<section class="panel analysis-panel pae-panel" id="pae-panel">${intro}<div class="pae-metadata"><strong>${dimension(s)}</strong><span>${axis(s)} · 原始矩阵</span></div><div id="pae-idle" class="pae-idle"><span class="pae-idle-grid" aria-hidden="true">${icon('grid')}</span><p>按显示像素读取有界预览。<br>完整矩阵保留在结果文件中。</p><button class="button button-primary" type="button" id="pae-load-preview">${icon('play')}加载矩阵预览</button></div><p id="pae-error" class="pae-error" role="alert" hidden></p><div id="pae-plot" hidden><div class="pae-plot-mode"><strong id="pae-mode-label"></strong><button type="button" class="text-button" id="pae-overview" hidden>返回全图</button><button type="button" class="text-button" id="pae-dividers" hidden aria-pressed="true" title="链边界分隔线（ChimeraX dividerLines 惯例）；线可能遮挡个别链末端残基">链边界</button></div><div class="pae-wrap"><span class="pae-axis-y">行 · ${axis(s)}</span><div class="pae-plot-area"><canvas id="pae-canvas" class="pae-canvas" width="256" height="256" aria-label="PAE 原始行列顺序矩阵"></canvas><div id="pae-chain-overlay" class="pae-chain-overlay" hidden role="img" aria-label="链边界分隔线"></div></div><div class="pae-bottom">列 · ${axis(s)}</div><div class="pae-legend"><span>0 Å</span><span class="pae-gradient"></span><span id="pae-color-max"></span></div></div><div class="plot-tooltip" id="pae-tooltip">移动指针查看实际采样点</div><p class="pae-method-note" id="pae-method-note"></p><div class="pae-missing-key"><i></i>灰色：缺失值</div><form id="pae-window-form" class="pae-window-form"><div class="pae-window-heading">查看局部原始值 <span>坐标从 1 开始</span></div><label>起始行<input id="pae-row" type="number" min="1" max="${s.rows}" step="1" value="1" required></label><label>起始列<input id="pae-col" type="number" min="1" max="${s.cols}" step="1" value="1" required></label><label>窗口大小<select id="pae-window-size"><option value="32">32 × 32</option><option value="64" selected>64 × 64</option><option value="128">128 × 128</option></select></label><button type="submit" class="button button-secondary" id="pae-load-window">读取局部</button><div class="pae-window-nav" aria-label="原始矩阵窗口导航"><button type="button" data-pae-move="up" aria-label="上一行窗口">↑</button><button type="button" data-pae-move="left" aria-label="上一列窗口">←</button><button type="button" data-pae-move="right" aria-label="下一列窗口">→</button><button type="button" data-pae-move="down" aria-label="下一行窗口">↓</button></div></form></div><div class="pae-downloads">${downloads(s)}</div><p class="pae-source-note">PAE 是模型误差估计，预览不产生新的预测结果。</p></section>`;
   }
-  function stop(){generation++;active?.controller?.abort();active=null;}
+  function stop(){generation++;active?.controller?.abort();active=null;window.setPAEHover?.(null);}
   function validData(data,s,exact){
     if(!data||data.method!==(exact?'exact':'nearest-center')||data.unit!=='angstrom')throw new Error('矩阵响应的方法或单位不匹配');
     const h=data.rowIndices?.length,w=data.colIndices?.length,max=exact?tileLimit:limit;
@@ -116,7 +127,7 @@
     const lines=paintOverlay(session,data);
     const range=`行 ${data.rowIndices[0]+1}–${data.rowIndices.at(-1)+1} / 列 ${data.colIndices[0]+1}–${data.colIndices.at(-1)+1}`;
     root.querySelector('#pae-method-note').textContent=(exact?`${range}。逐格保留原始值。`:'每像素取对应区间中心的原始点；不是区间平均，细小区域可能未被采样。点击图中位置可读取附近原始窗口。')+(session.spec.max?'':` 色标上限来自已加载预览（${Number(max.toPrecision(4))} Å），不代表完整矩阵最大值。`)+(lines?` 链边界线画在链 ID 变化的采样/窗口索引之间（ChimeraX dividerLines 惯例），可能遮挡个别链末端残基；采样下短链边界可能未被显示，可点「链边界」切换。`:'');
-    root.querySelector('#pae-tooltip').textContent=exact?`${range} · 移动指针查看原始值`:'移动指针查看实际采样点';
+    root.querySelector('#pae-tooltip').textContent=session.tip=exact?`${range} · 移动指针查看原始值`:'移动指针查看实际采样点';
     session.data=data;
   }
   function point(session,event){const rect=session.root.querySelector('#pae-canvas').getBoundingClientRect(),d=session.data;if(!d)return null;const y=Math.max(0,Math.min(d.rowIndices.length-1,Math.floor((event.clientY-rect.top)/rect.height*d.rowIndices.length))),x=Math.max(0,Math.min(d.colIndices.length-1,Math.floor((event.clientX-rect.left)/rect.width*d.colIndices.length)));return {row:d.rowIndices[y],col:d.colIndices[x],value:d.values[y][x]};}
@@ -124,13 +135,15 @@
   function mount(result){
     stop();const root=document.getElementById('pae-panel');if(!root)return;const s=spec(result);if(!s.available)return;
     if(!cache||cache.key!==s.key)cache={key:s.key,preview:null,tile:null,colorMax:null};
-    const session={root,spec:s,request:0,controller:null,data:null,generation,dividers:true};active=session;
+    const session={root,spec:s,request:0,controller:null,data:null,generation,dividers:true,residues:result.residues,tip:'移动指针查看实际采样点'};active=session;
     root.querySelector('#pae-load-preview').addEventListener('click',()=>load(session,{maxSize:previewSize(root)}));
     root.querySelector('#pae-overview').addEventListener('click',()=>{session.controller?.abort();session.request++;busy(session,false);if(cache.preview)paint(session,cache.preview);else load(session,{maxSize:previewSize(root)});});
     root.querySelector('#pae-dividers').addEventListener('click',()=>{session.dividers=!session.dividers;if(session.data)paintOverlay(session,session.data);});
     root.querySelector('#pae-window-form').addEventListener('submit',event=>{event.preventDefault();try{load(session,windowOptions(session));}catch(error){showError(session,error.message);}});
     root.querySelectorAll('[data-pae-move]').forEach(button=>button.addEventListener('click',()=>{const size=Number(root.querySelector('#pae-window-size').value),vertical=['up','down'].includes(button.dataset.paeMove),input=root.querySelector(vertical?'#pae-row':'#pae-col'),sign=['up','left'].includes(button.dataset.paeMove)?-1:1;input.value=Math.max(1,Math.min(vertical?s.rows:s.cols,Number(input.value)+sign*size));try{load(session,windowOptions(session));}catch(error){showError(session,error.message);}}));
-    const canvas=root.querySelector('#pae-canvas');canvas.addEventListener('mousemove',event=>{const p=point(session,event);if(!p)return;root.querySelector('#pae-tooltip').textContent=`${session.data.method==='exact'?'原始值':'原始采样点'} · 行 ${p.row+1} / 列 ${p.col+1} · ${p.value===null?'数据缺失':String(p.value)+' Å'}`;});
+    const canvas=root.querySelector('#pae-canvas');
+    canvas.addEventListener('mousemove',event=>{const p=point(session,event);if(!p)return;const residues=residueIdentity(session.spec,session.residues),chains=session.spec.chains;let identity='';if(residues){const label=index=>{const r=residues[index];if(!r)return '—';const chain=String(r.chain??'').trim()||'A',number=Number(r.residueNumber);return `${chain}:${Number.isInteger(number)?number:index+1} ${r.aa||r.resName||'X'}`;};identity=` · 行残基 ${label(p.row)} · 列残基 ${label(p.col)}`;}else if(chains&&chains[p.row]&&chains[p.col])identity=` · 行链 ${chains[p.row]} · 列链 ${chains[p.col]}`;root.querySelector('#pae-tooltip').textContent=`${session.data.method==='exact'?'原始值':'原始采样点'} · 行 ${p.row+1} / 列 ${p.col+1} · ${p.value===null?'数据缺失':String(p.value)+' Å'}${identity}`;if(residues)window.setPAEHover?.({row:p.row,col:p.col});});
+    canvas.addEventListener('mouseleave',()=>{window.setPAEHover?.(null);root.querySelector('#pae-tooltip').textContent=session.tip;});
     canvas.addEventListener('click',event=>{const p=point(session,event);if(!p)return;const half=Math.floor(Number(root.querySelector('#pae-window-size').value)/2);root.querySelector('#pae-row').value=Math.max(1,p.row-half+1);root.querySelector('#pae-col').value=Math.max(1,p.col-half+1);load(session,windowOptions(session));});
     if(cache.preview)paint(session,cache.preview);else if(s.inline)load(session,{maxSize:previewSize(root)});
   }
