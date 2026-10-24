@@ -1,5 +1,6 @@
 # Application state, user inputs, results and generated verification artifacts.
 /data/
+/data-*/
 /artifacts/
 /runs/
 /outputs/

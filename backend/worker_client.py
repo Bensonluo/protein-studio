@@ -19,6 +19,7 @@ from pathlib import Path
 from .distributed import digest_file, safe_extract
 from .resident import ResidentProcess, ResidentProcessError
 from .gpu_access import gpu_group_lease, normalize_group
+from .proxy_paths import normalize_base_path
 
 LOG = logging.getLogger('protein-studio.worker')
 
@@ -31,17 +32,42 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         raise ValueError('Worker requests must not redirect to another endpoint.')
 
 
+def worker_request_url(controller_url, path):
+    """Resolve only worker API paths under the configured origin/mount, never external URLs."""
+    if not isinstance(path, str) or any(ord(char) < 32 or ord(char) == 127 for char in path):
+        raise ValueError('Worker path must be a clean origin-relative path.')
+    controller = urllib.parse.urlsplit(controller_url)
+    if controller.scheme not in {'http', 'https'} or not controller.hostname or controller.username or controller.password or controller.query or controller.fragment:
+        raise ValueError('Controller URL must be an HTTP(S) origin with an optional application mount.')
+    base = normalize_base_path(controller.path)
+    target = urllib.parse.urlsplit(path)
+    if target.scheme or target.netloc or target.fragment or not target.path.startswith('/'):
+        raise ValueError('Worker path must be an origin-relative worker API path.')
+    # These endpoints use server-generated identifiers, not percent-encoded path
+    # segments. Reject normalization tricks before attaching bearer credentials.
+    if '%' in target.path or '\\' in target.path or any(part in {'.', '..'} for part in target.path.split('/')):
+        raise ValueError('Worker API paths must not contain escaped or relative segments.')
+    if base and target.path.startswith(base + '/worker/v1/'):
+        internal = target.path[len(base):]
+    else:
+        internal = target.path
+    if not internal.startswith('/worker/v1/'):
+        raise ValueError('Worker path must use the configured worker API.')
+    return urllib.parse.urlunsplit((controller.scheme, controller.netloc, base + internal, target.query, ''))
+
+
 class WorkerClient:
     def __init__(self, url, worker_id, token, engine, runtime_version, work_dir, resident_command,
                  gpu_devices=None, demo=False, unsafe_http=False, samples=None, recycles=None,
                  resident_startup_timeout=600, resident_request_timeout=7200, http_timeout=60):
         parsed = urllib.parse.urlsplit(url)
         if parsed.scheme not in {'http','https'} or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
-            raise ValueError('Controller URL must be a plain HTTP(S) origin.')
+            raise ValueError('Controller URL must be an HTTP(S) origin with an optional application mount.')
         if parsed.scheme != 'https' and parsed.hostname not in {'127.0.0.1','localhost','::1'} and not unsafe_http:
             raise ValueError('Non-loopback workers require TLS; --unsafe-http is an explicit development-only override.')
         if len(token) < 24:
             raise ValueError('Worker bearer token must contain at least 24 characters.')
+        normalize_base_path(parsed.path)
         self.url=url.rstrip('/')
         self.worker_id,self.token,self.engine,self.runtime_version=worker_id,token,engine,runtime_version
         self.root=Path(work_dir).resolve()
@@ -75,8 +101,7 @@ class WorkerClient:
         self.restart_count=0
 
     def request(self,path,payload=None,headers=None,data=None):
-        if not path.startswith('/worker/v1/'):
-            raise ValueError('Worker path must use the worker API.')
+        url = worker_request_url(self.url, path)
         extra={'Authorization':'Bearer '+self.token}
         extra.update(headers or {})
         method='GET'
@@ -86,7 +111,7 @@ class WorkerClient:
             method='POST'
         elif data is not None:
             method='POST'
-        request=urllib.request.Request(self.url+path,data=data,headers=extra,method=method)
+        request=urllib.request.Request(url,data=data,headers=extra,method=method)
         return self.opener.open(request,timeout=self.http_timeout)
 
     def json_request(self,path,payload):

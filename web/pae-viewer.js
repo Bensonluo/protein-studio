@@ -10,7 +10,7 @@
   const finite=value=>typeof value==='number'&&Number.isFinite(value)&&value>=0;
   function localUrl(value){
     if(typeof value!=='string'||!value)return null;
-    try{const url=new URL(value,location.href);return url.origin===location.origin&&url.pathname.startsWith('/api/')?url:null;}catch{return null;}
+    try{const url=new URL(appUrl(value),location.href);return url.origin===location.origin&&url.pathname.startsWith(appUrl('/api/'))?url:null;}catch{return null;}
   }
   function spec(result={}){
     result=result||{};

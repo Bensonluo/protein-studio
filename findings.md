@@ -45,3 +45,5 @@ ColabFold v1.6.3与AF3 v3.0.4固定接口；MMseqs latest页面2026-10-23指向1
 ## 前端UX审核发现（2026-10-23）
 
 输入草稿和异步结果必须按用户最后意图保留；仅保留DOM不足以保证参数不变。预测提交成功应先落本地显示状态，不能被后续GET错误降格为失败。批次筛选身份包含campaign/stage/offset；队列表格提交不应依赖详情GET成功。科学视图必须按残基身份使用明确pLDDT，不假定所有结构B列都代表置信度。完整问题、修复和测试记录见docs/frontend-ux-review.md。
+
+腾讯云已有benluo.art证书、Nginx和portfolio-fe容器；foldspace子域无服务器DNS解析，复用/foldspace路径。Dockerfile缺ijson安装；默认写接口无访客隔离，公开版使用独立只读handler和公开fixtures数据。现有portfolio-fe含多处用户未提交修改，本轮只定向增加Foldspace展示，不重置或批量提交。

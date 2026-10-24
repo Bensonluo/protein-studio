@@ -1,0 +1,18 @@
+# Layer over compose.yaml. The data volume is initialized only with public fixtures.
+services:
+  studio:
+    image: protein-studio:public
+    command: ["python", "scripts/serve_public_demo.py"]
+    environment:
+      PROTEIN_STUDIO_BASE_PATH: "/foldspace"
+      PROTEIN_STUDIO_PUBLIC_DATA_DIR: "/app/data"
+      PROTEIN_STUDIO_PUBLIC_ORIGIN: "https://benluo.art"
+      PROTEIN_STUDIO_ALLOWED_HOSTS: "benluo.art,www.benluo.art,101.43.97.91"
+    mem_limit: 384m
+    cpus: 0.75
+    pids_limit: 96
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

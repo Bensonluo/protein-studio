@@ -121,7 +121,7 @@
     const generation=ui.generation;ui.busy=true;const controller=new AbortController();ui.request=controller;
     const button=document.getElementById('cluster-refresh');if(button)button.disabled=true;
     try {
-      const response=await fetch('/api/cluster',{signal:controller.signal,cache:'no-store'});
+      const response=await fetch(appUrl('/api/cluster'),{signal:controller.signal,cache:'no-store'});
       const data=await response.json();
       if (!response.ok) throw new Error(data.error||`读取失败 (${response.status})`);
       if (!data || !Array.isArray(data.nodes)) throw new Error('控制面返回的节点数据格式不正确');
