@@ -12,17 +12,17 @@ const atom=(serial,resn,chain,resi,x,y,z,b)=>`ATOM  ${String(serial).padStart(5)
 const pdbPrimary=[...Array(6)].map((_,i)=>atom(i+1,'ALA','A',i+1,1+i*1.2,2,3,88-i*3)).join('\n')+'\nEND\n';
 const pdbModel2=[...Array(10)].map((_,i)=>atom(i+1,'GLY','A',i+1,1+i*1.1,3,4,[92,70,35,64,48,55,81,12,76,39][i])).join('\n')+'\nEND\n';
 const jobs=[
-  {id:'job-m',name:'多采样模型任务',engine:'alphafold3',status:'completed',updatedAt:'2026-10-24T10:00:00Z',chains:[{id:'A',sequence:'ACDEFGHIKL'}],result:{sequenceLength:10,meanPlddt:81.0,iptm:0.85}},
   {id:'job-r',name:'公开参考回放',engine:'reference',status:'completed',updatedAt:'2026-10-24T10:00:00Z',chains:[{id:'A',sequence:'ACDEFG'}],result:{sequenceLength:6,meanPlddt:80.2}},
+  {id:'job-m',name:'多采样模型任务',engine:'alphafold3',status:'completed',updatedAt:'2026-10-24T10:00:00Z',chains:[{id:'A',sequence:'ACDEFGHIKL'}],result:{sequenceLength:10,meanPlddt:81.0,iptm:0.85}},
   {id:'job-q',name:'排队中任务',engine:'alphafold3',status:'queued',updatedAt:'2026-10-24T10:00:00Z',chains:[{id:'A',sequence:'ACDEFG'}]},
 ];
 const detail={
-  'job-m':{...jobs[0],result:{structureUrl:'/api/jobs/job-m/structure',structureFormat:'pdb',sequenceLength:10,meanPlddt:81.0,ptm:0.8,iptm:0.85,rankingScore:0.842,rankingMetric:'0.8 ipTM + 0.2 pTM',plddt:[88,85,82,79,76,73,70,67,64,61],residues:[],provenance:{mode:'prediction'},
+  'job-m':{...jobs.find(j=>j.id==='job-m'),result:{structureUrl:'/api/jobs/job-m/structure',structureFormat:'pdb',sequenceLength:10,meanPlddt:81.0,ptm:0.8,iptm:0.85,rankingScore:0.842,rankingMetric:'0.8 ipTM + 0.2 pTM',plddt:[88,85,82,79,76,73,70,67,64,61],residues:[],provenance:{mode:'prediction'},
     rankedModels:[
       {rank:1,name:'sample-0',structureUrl:'/api/jobs/job-m/artifact?name=sample-0.pdb',structureFormat:'pdb',meanPlddt:88.1,ptm:0.8,iptm:0.85,rankingScore:0.842},
       {rank:2,name:'sample-1',structureUrl:'/api/jobs/job-m/artifact?name=sample-1.pdb',structureFormat:'pdb',meanPlddt:71.4,ptm:0.6,iptm:0.62,rankingScore:0.610},
     ],artifacts:[{name:'scores.json',url:'/api/jobs/job-m/artifact?name=scores.json',size:2048}]}},
-  'job-r':{...jobs[1],result:{structureUrl:'/api/jobs/job-r/structure',structureFormat:'pdb',sequenceLength:6,meanPlddt:80.2,plddt:[],residues:[],provenance:{mode:'reference'},
+  'job-r':{...jobs.find(j=>j.id==='job-r'),result:{structureUrl:'/api/jobs/job-r/structure',structureFormat:'pdb',sequenceLength:6,meanPlddt:80.2,plddt:[],residues:[],provenance:{mode:'reference'},
     rankedModels:[{rank:1,name:'Polyubiquitin-B',structureUrl:'/api/jobs/job-r/artifact?name=afdb.pdb',structureFormat:'pdb',meanPlddt:80.2}],artifacts:[]}},
 };
 const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.stringify(data)});
@@ -108,6 +108,15 @@ const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.
   assert.equal((await queuedCell.innerText()).trim(),'—');
   assert.equal(await queuedCell.locator('.campaign-score-band').count(),0);
   checks.push('Jobs table confidence column bands pLDDT (AF DB) and ipTM (EBI), muted dash for unscored jobs');
+  assert.equal(await page.locator('tbody tr[data-job-id]').first().getAttribute('data-job-id'),'job-r');
+  await page.locator('[data-jobs-sort]').click();
+  await page.waitForFunction(()=>document.querySelector('tbody tr[data-job-id]')?.getAttribute('data-job-id')==='job-m',null,{timeout:5000});
+  assert.match(await page.locator('#jobs-sort-confidence').textContent(),/置信度 ↓/);
+  assert.equal(await page.locator('thead th[aria-sort="descending"]').count(),1);
+  assert.deepEqual(await page.locator('tbody tr[data-job-id]').evaluateAll(rows=>rows.map(r=>r.getAttribute('data-job-id'))),['job-m','job-r','job-q']);
+  await page.locator('[data-jobs-sort]').click();
+  await page.waitForFunction(()=>document.querySelector('tbody tr[data-job-id]')?.getAttribute('data-job-id')==='job-r',null,{timeout:5000});
+  checks.push('Confidence column header sorts completed jobs by mean pLDDT descending (BLAST-style), toggling back restores recency');
   await page.locator('[data-job-id="job-r"] .row-action').click();
   await page.waitForFunction(()=>document.querySelector('.job-detail-bar strong')?.textContent==='公开参考回放');
   await page.waitForFunction(()=>state.viewer?.getModel()?.selectedAtoms?.({})?.length===6,null,{timeout:15000});
