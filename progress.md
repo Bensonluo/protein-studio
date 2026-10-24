@@ -225,3 +225,9 @@
 - 源：LIVIA universal+About（Circular Contact Map chord diagram：弧=链∝长度、cLIR 线跨全部链对）+ AlphaBridge ribbon_plot（PDB-REDO，独立同式）+ COcaDA/ConPlot（#27 家族参照）（三源）。
 - 实现：renderChainConfidence 新增 contactChord——弧角∝链残基数、链色带、链标签外置；弦=跨链 Cα≤8Å 接触对、过圆心贝塞尔、五档 PAE 色带与 2D 图/3D 线同语言、悬停 title 同款；与 2D 图同门控（mapGroups 空不渲染）。零后端改动。
 - 验证：browser_ranked_models 23/23 首跑即绿；十层链 10/10（后端 332 OK/1 skip/74.2s）；SEC-GREP 手动 diff-scoped CLEAN。English commit: feat: circular contact map overview。
+
+### 2026-10-25 迭代 #29：序列条界面接触残基标记（feat: sequence interface residue marking）
+
+- 源：LIVIA sequence viewer（LIR/cLIR 序列级高亮惯例）+ ProSAT+（H-ITS，序列特征↔结构高亮同型）+ RCSB Sequence Annotations Viewer / Jalview（序列特征轨道通行惯例）（三源）。
+- 实现：renderSequence 逐残基判属 interfaceContactSelection()（与 #21/#26 同一后端高置信接触集，仅主模型）→ 链色下划线（同 2D 图/chord 调色板）+ title 标注「界面接触残基」；单一诚实层、不造假 LIR 层；residueNumber 非整/链不匹配跳过。
+- 验证：产品侧首红——新代码把返回数组当 Map 用（.get 抛 TypeError 断渲染管线），改 Map-of-Sets 包装后修复；browser_ranked_models 24/24 绿；十层链 10/10（后端 332 OK/1 skip/73.8s，零后端改动）；SEC-GREP 手动 diff-scoped CLEAN。English commit: feat: sequence interface residue marking。

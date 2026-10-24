@@ -63,6 +63,7 @@ const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.
   assert.equal(await page.locator('#model-select').inputValue(),'0');
   const rank1Panel=await page.locator('.analysis-panel:not(.pae-panel)').textContent();
   assert.match(rank1Panel,/81\.0/);
+  assert.equal(await page.locator('.sequence-row .residue.iface-contact').count(),0);
   assert.doesNotMatch(rank1Panel,/B 因子/);
   checks.push('Model picker lists every ranked sample with its AF3-style rank, pLDDT and ranking score, rank 1 selected by default');
   assert.equal(await page.locator('.chain-conf-panel').count(),0);
@@ -190,6 +191,13 @@ const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.
   assert.match(chordTitles[1],/A:6 A ↔ B:1 A · Cα≤8 Å · PAE 6\.5/);
   const chordStrokes=await chordCard.locator('path.chord-line').evaluateAll(ps=>ps.map(p=>p.getAttribute('stroke')).sort());
   assert.deepEqual(chordStrokes,['#4fa8d8','#a8c95a']);
+  const markedResidues=page.locator('.sequence-row .residue.iface-contact');
+  assert.equal(await markedResidues.count(),6);
+  const markedInfo=await markedResidues.evaluateAll(sp=>sp.map(s=>({i:s.getAttribute('data-residue'),color:(s.getAttribute('style')||'').match(/border-bottom-color:(#[0-9a-f]{6})/)?.[1]||null})));
+  assert.deepEqual(markedInfo.map(m=>m.i),['4','5','6','7','8','9']);
+  assert.equal(markedInfo[0].color,'#9edac6');
+  assert.equal(markedInfo[2].color,'#b7cb85');
+  assert.match(await markedResidues.first().getAttribute('title'),/界面接触残基/);
   const ifaceBtn=page.locator('#iface-toggle');
   assert.equal(await ifaceBtn.count(),1);
   assert.match(await ifaceBtn.textContent(),/界面残基：关/);
@@ -224,6 +232,7 @@ const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.
   checks.push('Interface color mode grays non-interface residues and keeps the chain color on confident-contact residues (LIVIA Gray non-LIR convention); option only offered for multichain jobs with contact data');
   checks.push('Inter-chain 2D contact map renders one dot per 8 A cross-chain pair with per-pair hover titles and the 3D contact-line PAE bands (COcaDA axis-per-chain convention, LIVIA linear contact map semantics); PAE-less pairs draw no dot');
   checks.push('Circular contact map renders chain arcs sized by length with one chord per cross-chain contact pair (LIVIA chord diagram / AlphaBridge ribbon_plot convention), same five-band PAE colors and hover titles as the 2D map and 3D lines');
+  checks.push('Sequence row marks confident interface-contact residues with a chain-palette underline and tooltip tag (LIVIA sequence-viewer LIR/cLIR highlighting, ProSAT+/RCSB sequence-feature mapping convention); absent without contact data and on sample views via the shared primary-model selection guard');
   checks.push('Single-model reference jobs keep the plain viewer without a picker or per-row view actions');
   await page.locator('[data-view="jobs"]').click();
   await page.locator('[data-job-id="job-m"] .row-action').click();

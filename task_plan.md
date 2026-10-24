@@ -450,3 +450,14 @@
 
 验证计划：同 #27 十层链。
 验证结果：browser_ranked_models 23/23 首跑即绿（零调试弧线）；十层链 t1–t10 全绿（全量后端 332 OK/1 skip/74.2s，零后端改动）；手动 diff-scoped SEC-GREP CLEAN。
+
+## 2026-10-25 持续迭代：序列条界面接触残基标记
+
+#28 后把界面接触从「图/3D」落到「序列本体」——LIVIA 系列可视化里序列条是残基级信息的第一入口，界面残基必须在序列上直接可见。依据三源：LIVIA sequence viewer（LIR/cLIR 高亮惯例：界面残基在序列本体标记，viewer 直读接触集）；ProSAT+（H-ITS，序列特征映射结构高亮的同型工具）；RCSB Sequence Annotations Viewer + Jalview（序列级特征轨道为通行惯例）。设计决策：单一诚实层——只标后端高置信接触集（PAE<10 & Cα<15 的 interfaceContacts，与 #21/#26 着色同集），不造假 LIR 层（无全接触集制品）；标记 = 链色下划线（border-bottom 链配色，与 2D 图/chord Chain 标签同调色板）+ 悬停 title 后缀「界面接触残基」；仅主模型（与 #21/#26 共用 interfaceContactSelection 守卫，采样切换自动消失）；residueNumber 非整或链不匹配则跳过不猜。
+
+1. [完成] web/app.js renderSequence：chainIds 后建 ifaceMarks（interfaceContactSelection() 返回 [{chain,resi}] → Map<chain,Set>），span 模板逐残基判 marked（链 trim 归一、residueNumber 整数校验）、style 追加 border-bottom-color、class 追加 iface-contact、title 追加标注。
+2. [完成] web/styles.css：.residue.iface-contact（border-bottom:2px solid + padding-bottom:1px）。
+3. [完成] 测试 browser_ranked_models（23→24 项）：job-r 断言标记数=6（interfaceContacts 区间并集 A5,A6,B1–4）、data-residue 序列 ['4'..'9']、下划线色按链分（#9edac6/#b7cb85）、首标记 title 含「界面接触残基」；job-m 无界面数据断言零标记；README 功能句 + model-ui 24 项计数。
+
+验证计划：同 #28 十层链。
+验证结果：诚实记录一处产品侧首红——t5 超时：新代码把 interfaceContactSelection() 返回值当 Map 用（ifaceGroups.get(chain)），实际返回数组 [{chain,resi}] → TypeError 打断整个渲染管线；修正为先包装 ifaceMarks=new Map(groups.map(g=>[g.chain,new Set(g.resi)]))。修正后 browser_ranked_models 24/24 绿；十层链 t1–t10 全绿（全量后端 332 OK/1 skip/73.8s，零后端改动）；手动 diff-scoped SEC-GREP CLEAN。
