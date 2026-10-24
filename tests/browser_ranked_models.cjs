@@ -50,9 +50,12 @@ const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.
     else throw Error('Unmocked API '+u.pathname);
     await route.fulfill(payload);
   });
-  await page.goto(`http://127.0.0.1:${server.address().port}/#studio`);
+  await page.goto(`http://127.0.0.1:${server.address().port}/#job/job-m`);
   await page.waitForSelector('#model-select');
   await page.waitForFunction(()=>state.viewer?.getModel()?.selectedAtoms?.({})?.length===6,null,{timeout:15000});
+  assert.equal(await page.evaluate(()=>location.hash),'#job/job-m');
+  assert.equal(await page.evaluate(()=>state.selectedId),'job-m');
+  checks.push('A #job/{id} URL opens that job directly with the hash preserved');
   const options=await page.locator('#model-select option').allTextContents();
   assert.equal(options.length,2);
   assert.match(options[0],/排名 1 .*sample-0 .*pLDDT 88\.1 .*排名分 0\.842/);

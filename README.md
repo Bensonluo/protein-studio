@@ -34,7 +34,7 @@ PROTEIN_STUDIO_PYTHON=/path/to/python3.12 ./start.sh
 ## 已实现的工作流
 
 1. **提交**：单链或多链 FASTA、输入校验、引擎选择、种子、引擎对应的采样参数、recycles、队列优先级；多记录 FASTA 可选择作为独立批量任务。
-2. **执行**：持久化任务与 campaign 队列；legacy 模式调用单目标运行器，workers 模式由本地/远端 agent 拉取批次并复用 AF3 常驻模型进程；支持取消、超时和逐项失败记录。
+2. **执行**：持久化任务与 campaign 队列；legacy 模式调用单目标运行器，workers 模式由本地/远端 agent 拉取批次并复用 AF3 常驻模型进程；支持取消、超时和逐项失败记录。任务支持 `#job/{id}` 深链直开、选择跟随 URL 与浏览器前进/后退（AF DB / SWISS-MODEL 工作区稳定结果 URL 惯例）。
 3. **资源**：本地独占 GPU 组与认证的远端 worker；按引擎、参数、位置和实测后配置的目标长度上限分发，区分规划 16 卡与真实注册在线节点。
 4. **解析**：PDB / mmCIF、模型排名、pLDDT、PAE、pTM / ipTM（原始输出存在时）。实验结构 B 因子保留其含义。
 5. **可视化**：WebGL 三维 cartoon、球棍及分子表面；按置信度、链或序列光谱着色；多排名采样可在三维视图间切换（下拉列出排名 / 样本名 / pLDDT / 排名分，表格提供"三维查看"，非主排名按结构文件 B 因子即 pLDDT 着色与逐残基曲线导出——AF3 Server / ColabFold 的选中采样置信度惯例——文件无可用 B 因子时回退按链着色且不虚构曲线）；旋转、缩放、全屏、截图和残基定位。
@@ -190,4 +190,4 @@ tests/          浏览器端到端验证
 
 ### 前端功能与体验检查
 
-本轮提交、批次、结果视图与运维交互修复及验证记录见 [前端体验检查报告](docs/frontend-ux-review.md)。使用 `npm run test:workspace-ux` 运行隔离交互回归；`npm run test:workspace-ux-live` 只读检查当前服务。排名模型切换契约使用 `npm run test:model-ui`（模拟多采样 API，9 项，含"下载全部 zip"交付、任务列表置信度分带与按采样置信度曲线检查），逐残基着色函数回归在 `npm run test:workspace-ux` 的着色用例中。
+本轮提交、批次、结果视图与运维交互修复及验证记录见 [前端体验检查报告](docs/frontend-ux-review.md)。使用 `npm run test:workspace-ux` 运行隔离交互回归；`npm run test:workspace-ux-live` 只读检查当前服务。排名模型切换契约使用 `npm run test:model-ui`（模拟多采样 API，10 项，含"下载全部 zip"交付、任务列表置信度分带、按采样置信度曲线与 `#job/{id}` 深链检查），逐残基着色函数回归在 `npm run test:workspace-ux` 的着色用例中。任务深链端到端契约使用 `npm run test:deeplink`（需 `STUDIO_URL` 指向隔离服务）。

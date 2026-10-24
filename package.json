@@ -20,6 +20,7 @@
     "test:storage-ui": "node tests/browser_storage.cjs",
     "test:pae-ui": "node tests/browser_pae_lazy.cjs",
     "test:model-ui": "node tests/browser_ranked_models.cjs",
+    "test:deeplink": "node tests/browser_deeplink.cjs",
     "test:pae-http": "node tests/browser_pae_http.cjs",
     "test:msa-ui": "node tests/browser_msa_observation.cjs",
     "test:msa-http": "node tests/browser_msa_http.cjs",

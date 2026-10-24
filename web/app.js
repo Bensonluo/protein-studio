@@ -277,13 +277,16 @@ function highlightSequence(index) {document.querySelectorAll('.residue.selected'
 function downloadJSON(value,name) {const blob=new Blob([JSON.stringify(value,null,2)],{type:'application/json'});downloadBlob(blob,name);}
 function downloadBlob(blob,name) {const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);}
 function focusPageHeading() { window.scrollTo({top:0,behavior:'instant'});$('#page-title')?.focus({preventScroll:true}); }
+function jobIdFromHash(hash=location.hash){const match=/^#job\/([^/]+)$/.exec(hash||'');return match?decodeURIComponent(match[1]):null;}
 async function selectJob(id) {
   const request=++state.selectionRequest;
   try {
     const job=await api(`/api/jobs/${encodeURIComponent(id)}`);
     if(request!==state.selectionRequest)return;
     state.job=job;state.selectedId=id;localStorage.setItem('foldspace.selectedJob',id);
-    state.view='studio';location.hash='studio';renderMain();focusPageHeading();
+    // The URL follows the selection (AF DB / SWISS-MODEL stable result-URL
+    // convention) so a #job/{id} link opens this workspace directly.
+    state.view='studio';location.hash='job/'+id;renderMain();focusPageHeading();
   }catch(e){if(request===state.selectionRequest)toast(e.message,true);}
 }
 function navigate(view) {
@@ -457,14 +460,15 @@ async function initialize() {
   $('#new-job-button').addEventListener('click',()=>{if(['campaigns','cluster'].includes(state.view)){navigate('campaigns');$('#campaign-name')?.focus();}else openJobDialog();});$('#job-form').addEventListener('submit',submitJob);$('#load-example-button').addEventListener('click',loadExample);$('#sequence-input').addEventListener('input',updateResidueCount);$('#input-mode').addEventListener('change',()=>{updateResidueCount();renderSubmissionRoute();});
   document.querySelectorAll('[data-close-dialog]').forEach(el=>el.addEventListener('click',()=>$('#job-dialog').close()));$('#help-button').addEventListener('click',()=>$('#help-dialog').showModal());$('[data-close-help]').addEventListener('click',()=>$('#help-dialog').close());
   $('#import-form').addEventListener('submit',importStructure);document.querySelectorAll('[data-close-import]').forEach(el=>el.addEventListener('click',()=>$('#import-dialog').close()));$('#import-button').addEventListener('click',()=>$('#structure-file').click());$('#structure-file').addEventListener('change',e=>prepareImport(e.target.files[0]));
-  window.addEventListener('hashchange',()=>{const view=location.hash.slice(1);if(views[view]&&state.view!==view){state.selectionRequest++;state.view=view;renderMain();focusPageHeading();if(view==='campaigns'||view==='databases')refreshCampaignData().catch(e=>toast(e.message,true));}});
+  window.addEventListener('hashchange',()=>{const jobHash=jobIdFromHash();if(jobHash){if(state.selectedId!==jobHash)selectJob(jobHash);return;}const view=location.hash.slice(1);if(views[view]&&state.view!==view){state.selectionRequest++;state.view=view;renderMain();focusPageHeading();if(view==='campaigns'||view==='databases')refreshCampaignData().catch(e=>toast(e.message,true));}});
   try {
     const [,system]=await Promise.all([api('/api/health'),api('/api/system')]);state.system=system;state.engines=system.engines||[];window.configurePublicDemo?.(system.publicDemo);setServiceState();
     fetch(appUrl('/sources.json')).then(r=>r.ok?r.json():null).then(data=>{const list=Array.isArray(data)?data:data?.sources;state.sources=Array.isArray(list)?list:[];if(state.view==='sources')renderMain();}).catch(()=>{});
     await refreshJobs();
     await refreshCampaignData();
     if(!state.jobs.length){state.autoSeeded=true;state.example=await api('/api/examples/ubiquitin-afdb');const job=await api('/api/jobs',{method:'POST',body:JSON.stringify({name:state.example.name||'Ubiquitin B · 公开参考',engine:'reference',chains:state.example.chains,example:'ubiquitin-afdb',seeds:[1],numSamples:1})});await refreshJobs();state.selectedId=job.id;localStorage.setItem('foldspace.selectedJob',job.id);state.job=await api(`/api/jobs/${job.id}`);renderMain();}
-    else {const previous=localStorage.getItem('foldspace.selectedJob');const chosen=state.jobs.find(j=>j.id===previous)||state.jobs.find(j=>j.status==='completed')||state.jobs[0];state.selectedId=chosen.id;state.job=await api(`/api/jobs/${chosen.id}`);renderMain();}
+    else {const deep=jobIdFromHash();const previous=localStorage.getItem('foldspace.selectedJob');const chosen=state.jobs.find(j=>j.id===deep)||state.jobs.find(j=>j.id===previous)||state.jobs.find(j=>j.status==='completed')||state.jobs[0];state.selectedId=chosen.id;state.job=await api(`/api/jobs/${chosen.id}`);renderMain();
+      if(deep&&deep!==chosen.id){toast('链接指向的任务不存在，已显示最近任务。',true);location.hash='studio';}}
   } catch(error){setServiceState(error.message);renderMain();}
   $('#reconnect-service').addEventListener('click',pollWorkspace);
   setInterval(()=>{if(!document.hidden)pollWorkspace();},2500);
