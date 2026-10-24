@@ -78,5 +78,15 @@ residues=[{chain:'A',residueNumber:1,insertionCode:'',plddt:95}];
 styles=[];context.state.color='confidence';context.applyViewerStyle();
 assert.equal(styles.at(-1).cartoon.colorfunc({chain:'A',b:92}),'#9edac6');
 checks.push('Files whose B-factor column carries no usable pLDDT fall back to chain coloring instead of inventing confidence');
+modelAtoms=[
+  {name:'CA',chain:'A',resi:1,b:92},{name:'CA',chain:'A',resi:2,b:35},{name:'CB',chain:'A',resi:3,b:64},
+  {name:'CA',chain:'A',resi:3,b:64},{name:'CA',chain:'A',resi:3,b:70},{name:'CA',chain:'B',resi:1,b:48},
+  {name:'CA',chain:'A',resi:4,b:NaN},{name:'O',chain:'A',resi:5,b:99}
+];
+assert.deepEqual([...context.bFactorResidueCurve()],[92,35,64,48]);
+checks.push('The sample confidence curve keeps one CA value per residue, ignoring side-chain atoms, duplicates, invalid factors and other chains');
+modelAtoms=[{name:'CA',chain:'A',resi:1,b:0},{name:'CA',chain:'A',resi:2,b:0}];
+assert.equal(context.bFactorResidueCurve(),null);
+checks.push('A sample curve without usable B-factor pLDDT returns null rather than fabricating confidence');
 context.state.modelIndex=0;modelAtoms=[];
 console.log(JSON.stringify({status:'passed',count:checks.length,checks,scope:'Production coloring functions evaluated against a minimal 3Dmol viewer API fixture; no WebGL/native model claim.'},null,2));

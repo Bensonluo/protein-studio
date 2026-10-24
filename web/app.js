@@ -59,12 +59,12 @@ function renderViewerTabline(job) {
   const download=`<a class="text-button" href="${escapeHTML(appUrl(url))}" download>${icon('download')} 下载结构</a>`;
   if(models.length<2)return download;
   const options=models.map((model,i)=>{const metrics=[];if(Number.isFinite(model.meanPlddt))metrics.push(`pLDDT ${model.meanPlddt.toFixed(1)}`);if(Number.isFinite(model.rankingScore))metrics.push(`排名分 ${model.rankingScore.toFixed(3)}`);const label=`排名 ${model.rank??i+1} · ${model.name||'sample-'+i}${metrics.length?' · '+metrics.join(' · '):''}`;return `<option value="${i}" ${i===index?'selected':''}>${escapeHTML(label)}</option>`;}).join('');
-  return `<select class="color-select model-select" id="model-select" aria-label="切换排名模型">${options}</select><span class="subtle model-scope-note" title="置信度曲线、PAE 与逐残基着色基于排名 1 主结果；其他排名按结构文件 B 因子（pLDDT）着色">${index>0?'正在查看其他排名 · 曲线/PAE 仍为主结果':`${models.length} 个采样模型`}</span>`+download;
+  return `<select class="color-select model-select" id="model-select" aria-label="切换排名模型">${options}</select><span class="subtle model-scope-note" title="其他排名的曲线与着色按结构文件 B 因子（pLDDT 惯例）导出；PAE 仍对应排名 1 主结果">${index>0?'正在查看其他排名 · 曲线/着色按此采样，PAE 仍为主结果':`${models.length} 个采样模型`}</span>`+download;
 }
 function switchViewerModel(index) {
   const models=viewerModels();
   if(!Number.isInteger(index)||models.length<2||index<0||index>=models.length||state.modelIndex===index)return;
-  state.modelIndex=index;renderMain();
+  state.modelIndex=index;state.modelCurve=null;renderMain();
 }
 function mean(values) {const v=values.filter(Number.isFinite);return v.length?v.reduce((a,b)=>a+b,0)/v.length:null;}
 function confidenceColor(value) {return value>=90?'#65a5e8':value>=70?'#66d0d8':value>=50?'#e7ce68':'#e59263';}
@@ -109,7 +109,8 @@ function renderStudio() {
 
 function safeSourceLink(provenance) {const url=provenance.sourceUrl;return typeof url==='string'&&/^https?:\/\//.test(url)?`<a href="${escapeHTML(url)}" target="_blank" rel="noreferrer">${escapeHTML(provenance.sourceLabel||'原始来源')} ↗</a>`:escapeHTML(provenance.sourceLabel||'本地结果');}
 function renderConfidence(result) {
-  const values=getPlddt(result), avg=result.meanPlddt??mean(values);
+  const sampleCurve=viewerModelInfo().index>0?state.modelCurve:null;
+  const values=sampleCurve||getPlddt(result), avg=sampleCurve?mean(values):result.meanPlddt??mean(values);
   let body;
   if(!values.length) body=`<div class="empty-analysis">${icon('chart')}<strong>暂无模型置信度</strong><p>预测输出包含 pLDDT 后显示。<br>实验结构的 B 因子不作为 pLDDT。</p></div>`;
   else {
@@ -117,7 +118,7 @@ function renderConfidence(result) {
     const line=points.map((p,i)=>(i?'L':'M')+p.map(v=>v.toFixed(1)).join(',')).join(' '),area=`${line} L${w-pad},${h} L${pad},${h} Z`,high=values.filter(v=>v>=90).length/values.length*100;
     body=`<div class="confidence-value"><strong>${avg!=null?Number(avg).toFixed(1):'—'}</strong><span class="quality-pill">${avg>=90?'非常高':avg>=70?'较高':avg>=50?'需检查':'较低'}</span></div><div class="confidence-chart"><svg viewBox="0 0 ${w} ${h+5}" preserveAspectRatio="none" role="img" aria-label="逐残基pLDDT折线图"><defs><linearGradient id="chart-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#9abf75" stop-opacity=".35"/><stop offset="100%" stop-color="#9abf75" stop-opacity=".02"/></linearGradient></defs><path d="M4 15H246M4 39H246M4 64H246" stroke="#e9efe2" stroke-width=".7" stroke-dasharray="2 3"/><path d="${area}" fill="url(#chart-fill)"/><path d="${line}" fill="none" stroke="#7fa66d" stroke-width="1.35"/></svg><div class="chart-labels"><span>1</span><span>Residue index</span><span>${values.length}</span></div></div><div class="confidence-bands"><div class="bandbar"><span style="width:${high}%"></span></div><small>${high.toFixed(0)}% ≥ 90</small></div>`;
   }
-  return `<section class="panel analysis-panel"><div class="panel-heading"><h3>${icon('chart')}置信度分析</h3><span class="subtle">pLDDT</span></div><div class="analysis-title-note">局部结构的预测可信程度</div>${body}</section>`;
+  return `<section class="panel analysis-panel"><div class="panel-heading"><h3>${icon('chart')}置信度分析</h3><span class="subtle">pLDDT</span></div><div class="analysis-title-note">${sampleCurve?'当前查看采样 · 曲线由结构文件 B 因子（pLDDT 惯例）导出':'局部结构的预测可信程度'}</div>${body}</section>`;
 }
 function renderPAE(result) {return window.renderPAEPanel(result);}
 function drawPAE() {window.mountPAEPanel(state.job?.result);}
@@ -203,6 +204,8 @@ async function loadStructure() {
     const viewer=window.$3Dmol.createViewer(container,{backgroundColor:state.light?'#edf1e9':'#102a34',antialias:true,cartoonQuality:8});state.viewer=viewer;
     viewer.addModel(text,format==='mmcif'?'cif':format);applyViewerStyle();viewer.zoomTo();viewer.zoom(1.07);viewer.rotate(15,'y');viewer.rotate(-12,'x');viewer.render();if(state.spinning)viewer.spin('y',.3);
     viewer.setClickable({},true,atom=>selectAtom(atom));viewer.render();$('#viewer-loading')?.classList.add('hidden');
+    state.modelCurve=info.index>0?bFactorResidueCurve():null;
+    if(info.index>0){const panel=document.querySelector('.analysis-panel:not(.pae-panel)');if(panel)panel.outerHTML=renderConfidence(state.job.result);}
     const observer=new ResizeObserver(()=>{if(container.isConnected&&state.viewer===viewer){viewer.resize();viewer.render();}else observer.disconnect();});observer.observe(container);
   } catch(error) {if($('#viewer-loading'))$('#viewer-loading').innerHTML=`<span>${escapeHTML(error.message)}</span>`;}
 }
@@ -239,6 +242,21 @@ function bFactorConfidenceColorer() {
   const factors=atoms.map(atom=>Number(atom.b)).filter(Number.isFinite);
   if(!factors.length||!factors.some(value=>value>0&&value<=100))return null;
   return atom=>{const value=Number(atom.b);return Number.isFinite(value)&&value>0&&value<=100?confidenceColor(value):'#8e9ca6';};
+}
+function bFactorResidueCurve() {
+  // Per-residue pLDDT for the selected non-primary sample, read from CA B factors
+  // under the same AF2/ColabFold/AF3 convention as bFactorConfidenceColorer.
+  // Returns null when the file carries no usable factors so nothing is fabricated.
+  const atoms=state.viewer?.getModel()?.selectedAtoms?.({})||[];
+  const seen=new Set(),values=[];
+  for(const atom of atoms){
+    if((atom.atom||atom.name)!=='CA')continue;
+    const value=Number(atom.b);if(!Number.isFinite(value))continue;
+    const key=(atom.chain||'A')+':'+(atom.resi??values.length);
+    if(seen.has(key))continue;
+    seen.add(key);values.push(value);
+  }
+  return values.length&&values.some(value=>value>0&&value<=100)?values:null;
 }
 function applyViewerStyle() {
   const v=state.viewer;if(!v)return;v.removeAllSurfaces();v.setStyle({},{});const hasConfidence=getPlddt().length>0;

@@ -5,7 +5,10 @@ const assert=require('node:assert/strict'),fs=require('node:fs/promises'),http=r
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const root=path.resolve(__dirname,'..'),out=path.join(root,'artifacts');
 const checks=[],errors=[];let server,browser;
-const atom=(serial,resn,chain,resi,x,y,z,b)=>`ATOM  ${String(serial).padStart(5)}  CA  ${resn} ${chain}${String(resi).padStart(4)}    ${x.toFixed(3)}  ${y.toFixed(3)}  ${z.toFixed(3)}  1.00 ${b.toFixed(2)}           C`;
+// Column-exact ATOM records: name 13-16, resn 18-20, chain 22, resi 23-26,
+// x/y/z 31-54, occ 55-60, b-factor 61-66. 3Dmol reads these fixed columns, so
+// the B factors (the per-residue pLDDT of a ranked sample) must land exactly.
+const atom=(serial,resn,chain,resi,x,y,z,b)=>`ATOM  ${String(serial).padStart(5)}  CA  ${String(resn).padEnd(3)} ${chain}${String(resi).padStart(4)}    ${x.toFixed(3).padStart(8)}${y.toFixed(3).padStart(8)}${z.toFixed(3).padStart(8)}  1.00${b.toFixed(2).padStart(6)}           C`;
 const pdbPrimary=[...Array(6)].map((_,i)=>atom(i+1,'ALA','A',i+1,1+i*1.2,2,3,88-i*3)).join('\n')+'\nEND\n';
 const pdbModel2=[...Array(10)].map((_,i)=>atom(i+1,'GLY','A',i+1,1+i*1.1,3,4,[92,70,35,64,48,55,81,12,76,39][i])).join('\n')+'\nEND\n';
 const jobs=[
@@ -14,7 +17,7 @@ const jobs=[
   {id:'job-q',name:'排队中任务',engine:'alphafold3',status:'queued',updatedAt:'2026-10-24T10:00:00Z',chains:[{id:'A',sequence:'ACDEFG'}]},
 ];
 const detail={
-  'job-m':{...jobs[0],result:{structureUrl:'/api/jobs/job-m/structure',structureFormat:'pdb',sequenceLength:10,meanPlddt:81.0,ptm:0.8,iptm:0.85,rankingScore:0.842,rankingMetric:'0.8 ipTM + 0.2 pTM',plddt:[],residues:[],provenance:{mode:'prediction'},
+  'job-m':{...jobs[0],result:{structureUrl:'/api/jobs/job-m/structure',structureFormat:'pdb',sequenceLength:10,meanPlddt:81.0,ptm:0.8,iptm:0.85,rankingScore:0.842,rankingMetric:'0.8 ipTM + 0.2 pTM',plddt:[88,85,82,79,76,73,70,67,64,61],residues:[],provenance:{mode:'prediction'},
     rankedModels:[
       {rank:1,name:'sample-0',structureUrl:'/api/jobs/job-m/artifact?name=sample-0.pdb',structureFormat:'pdb',meanPlddt:88.1,ptm:0.8,iptm:0.85,rankingScore:0.842},
       {rank:2,name:'sample-1',structureUrl:'/api/jobs/job-m/artifact?name=sample-1.pdb',structureFormat:'pdb',meanPlddt:71.4,ptm:0.6,iptm:0.62,rankingScore:0.610},
@@ -55,6 +58,9 @@ const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.
   assert.match(options[0],/排名 1 .*sample-0 .*pLDDT 88\.1 .*排名分 0\.842/);
   assert.match(options[1],/排名 2 .*sample-1 .*pLDDT 71\.4 .*排名分 0\.610/);
   assert.equal(await page.locator('#model-select').inputValue(),'0');
+  const rank1Panel=await page.locator('.analysis-panel:not(.pae-panel)').textContent();
+  assert.match(rank1Panel,/81\.0/);
+  assert.doesNotMatch(rank1Panel,/B 因子/);
   checks.push('Model picker lists every ranked sample with its AF3-style rank, pLDDT and ranking score, rank 1 selected by default');
   const modelTable=page.locator('section.panel:has-text("模型与结果制品") tbody');
   const headers=await page.locator('section.panel:has-text("模型与结果制品") thead th').allTextContents();
@@ -68,12 +74,16 @@ const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.
   await page.waitForFunction(()=>state.viewer?.getModel()?.selectedAtoms?.({})?.length===10,null,{timeout:15000});
   assert.equal(await page.locator('#model-select').inputValue(),'1');
   assert.match(await page.locator('.model-scope-note').textContent(),/正在查看其他排名/);
+  await page.waitForFunction(()=>document.querySelector('.analysis-panel:not(.pae-panel)')?.textContent.includes('57.2'),null,{timeout:8000});
+  assert.match(await page.locator('.analysis-panel:not(.pae-panel)').textContent(),/B 因子/);
   const href=await page.locator('.viewer-tabline a[download]').getAttribute('href');
   assert.match(decodeURIComponent(href),/sample-1\.pdb/);
   checks.push('Switching the picker reloads the selected sample geometry into the viewer and retargets the download link');
   await modelTable.locator('tr').nth(0).locator('[data-view-model]').click();
   await page.waitForFunction(()=>state.viewer?.getModel()?.selectedAtoms?.({})?.length===6,null,{timeout:15000});
   assert.equal(await page.locator('#model-select').inputValue(),'0');
+  await page.waitForFunction(()=>{const panel=document.querySelector('.analysis-panel:not(.pae-panel)')?.textContent||'';return panel.includes('81.0')&&!panel.includes('B 因子');},null,{timeout:8000});
+  checks.push('The confidence panel curve follows the selected sample (B-factor derived) and returns to the primary curve on rank 1');
   checks.push('The models table 三维查看 action switches the viewer back to rank 1');
   const archiveDownload=page.waitForEvent('download');
   await page.locator('a[href*="/archive"]').click();
