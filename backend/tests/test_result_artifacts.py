@@ -155,24 +155,68 @@ class ResultArtifactsTests(unittest.TestCase):
         self.assertTrue(crowded['truncated'])
         self.assertEqual(len(crowded['contacts'][0]['resA']), 512)
 
+    def test_interface_lines_follow_chimerax_contacts_convention(self):
+        # ChimeraX alphafold contacts: cross-chain pairs within 8 A get lines
+        # colored by the pair's lower directed PAE - no PAE cutoff on distance.
+        residues = [{'chain': 'A', 'x': 0.0, 'y': 0.0, 'z': 0.0},
+                    {'chain': 'A', 'x': 1.0, 'y': 0.0, 'z': 0.0},
+                    {'chain': 'B', 'x': 7.5, 'y': 0.0, 'z': 0.0},
+                    {'chain': 'B', 'x': 40.0, 'y': 0.0, 'z': 0.0}]
+        matrix = [[0, 0, 3, 0], [0, 0, 12, 0], [12, 12, 0, 0], [0, 0, 0, 0]]
+        close = parsers.interface_contacts(matrix, residues, lines=True)
+        # Distance-only selection: the 12 A-PAE pair still draws; its color
+        # carries the confidence (ChimeraX has no PAE cutoff on lines).
+        self.assertEqual(close['lines'], [{'i': 0, 'j': 2, 'pae': 3.0}, {'i': 1, 'j': 2, 'pae': 12.0}])
+        self.assertFalse(close['linesTruncated'])
+        # 9 A still counts as an ipSAE-style contact (15 A) but draws no line.
+        beyond = parsers.interface_contacts(matrix,
+                                            [{'chain': 'A', 'x': 0.0, 'y': 0.0, 'z': 0.0},
+                                             {'chain': 'A', 'x': 1.0, 'y': 0.0, 'z': 0.0},
+                                             {'chain': 'B', 'x': 9.5, 'y': 0.0, 'z': 0.0},
+                                             {'chain': 'B', 'x': 40.0, 'y': 0.0, 'z': 0.0}], lines=True)
+        self.assertEqual(beyond['contacts'][0]['pairs'], 1)
+        self.assertEqual(beyond['lines'], [])
+        # Pairs whose PAE cells are missing cannot be colored and are skipped.
+        missing = parsers.interface_contacts([[None, None], [None, 0.0]],
+                                              [{'chain': 'A', 'x': 0.0, 'y': 0.0, 'z': 0.0},
+                                               {'chain': 'B', 'x': 1.0, 'y': 0.0, 'z': 0.0}], lines=True)
+        self.assertEqual(missing['lines'], [])
+        self.assertEqual(missing['contacts'], [])
+        # A crowded 8 A lattice caps the exported lines honestly.
+        crowded = []
+        for step in range(600):
+            crowded.extend(({'chain': 'A', 'x': 0.0, 'y': step * 1.0, 'z': 0.0},
+                            {'chain': 'B', 'x': 7.0, 'y': step * 1.0, 'z': 0.0}))
+        rows = [[5.0] * 1200 for _ in range(1200)]
+        packed = parsers.interface_contacts(rows, crowded, lines=True)
+        self.assertEqual(len(packed['lines']), 2048)
+        self.assertTrue(packed['linesTruncated'])
+        # The default call keeps the pre-lines contract shape.
+        legacy = parsers.interface_contacts(matrix, residues)
+        self.assertNotIn('lines', legacy)
+        self.assertNotIn('linesTruncated', legacy)
+
     def test_attach_interface_contacts_requires_aligned_residue_axes(self):
         result = artifacts.stream_confidence(
             self.source({'pae': [[0, 3], [3, 0]]}), self.root, build_pae=True, axis_kind='residue')
         payload = {'residues': [{'chain': 'A', 'x': 0.0, 'y': 0.0, 'z': 0.0},
-                                {'chain': 'B', 'x': 10.0, 'y': 0.0, 'z': 0.0}]}
+                                {'chain': 'B', 'x': 7.0, 'y': 0.0, 'z': 0.0}]}
         artifacts.attach_interface_contacts(payload, result['paeArtifact'], self.root)
         self.assertEqual(payload['interfaceContacts'], [{'a': 'A', 'b': 'B', 'pairs': 1,
                                                          'resA': [[0, 0]], 'resB': [[1, 1]]}])
+        self.assertEqual(payload['interfaceLines'], [{'i': 0, 'j': 1, 'pae': 3.0}])
         # Row count differing from residues, or a token-kind axis where a
         # residue can span tokens, never guesses a join.
         for bad in ({'residues': payload['residues'][:1]}, {'residues': payload['residues'] + [None]}):
             artifacts.attach_interface_contacts(dict(bad), result['paeArtifact'], self.root)
             self.assertNotIn('interfaceContacts', bad)
+            self.assertNotIn('interfaceLines', bad)
         token = artifacts.stream_confidence(
             self.source({'pae': [[0, 3], [3, 0]], 'token_chain_ids': ['A', 'B']}), self.root, build_pae=True)
         skipped = {'residues': payload['residues']}
         artifacts.attach_interface_contacts(skipped, token['paeArtifact'], self.root)
         self.assertNotIn('interfaceContacts', skipped)
+        self.assertNotIn('interfaceLines', skipped)
 
     def test_invalid_matrices_never_publish_or_invent_values(self):
         bad = [[], [[0, 1]], [[0], [2, 0]], [[0, None], [1, 0]], [[0, True], [1, 0]],

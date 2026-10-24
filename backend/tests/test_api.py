@@ -295,6 +295,9 @@ class APITests(unittest.TestCase):
         self.assertEqual(status, 201, contacts)
         self.assertEqual(contacts["result"]["interfaceContacts"],
                          [{"a": "A", "b": "B", "pairs": 2, "resA": [[0, 1]], "resB": [[2, 2]]}])
+        # 9/10 A contacts (ipSAE pair convention) but exceed the 8 A ChimeraX
+        # contact-line distance, so no lines are exported for this geometry.
+        self.assertNotIn("interfaceLines", contacts["result"])
 
 
 class StorageTests(unittest.TestCase):
@@ -333,7 +336,8 @@ class StorageTests(unittest.TestCase):
                       "chainPtm": [0.82, 0.55], "chainIptm": [0.71, 0.48],
                       "interfacePae": [{"a": "A", "b": "B", "mean": 3.5}],
                       "ipSae": [{"a": "A", "b": "B", "value": 0.82}],
-                      "interfaceContacts": [{"a": "A", "b": "B", "pairs": 9, "resA": [[0, 3]], "resB": [[4, 6]]}]}
+                      "interfaceContacts": [{"a": "A", "b": "B", "pairs": 9, "resA": [[0, 3]], "resB": [[4, 6]]}],
+                      "interfaceLines": [{"i": 0, "j": 5, "pae": 4.2}]}
             store.finish(job["id"], "completed",
                          result={"sequenceLength": 2, "meanPlddt": 88.1, "iptm": 0.72, **arrays})
             summary = store.list()[0]["result"]

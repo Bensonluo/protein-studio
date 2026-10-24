@@ -383,3 +383,15 @@
 
 验证计划：同 #21 十层链。
 验证结果：pae_lazy 18/18 首跑即绿 ×2；十层链 t1–t10 全绿（全量后端 330 OK / 1 skip / 74.8s）。诚实记录：首链因自审发现 descriptor axisKind=unknown 时仅凭长度匹配放行联动的守卫漏洞被主动废弃（与 #20「明示 residue 轴才可信」先例不一致），杀链修守卫（unknown 仅 inline 放行）后重跑全绿；链内 SEC-GREP 仍为 BSD grep -P 假阴性，手动 diff-scoped 复扫 CLEAN。
+
+## 2026-10-25 持续迭代：按 PAE 着色的界面接触线
+
+#22 收尾后把界面分析从「残基高亮」升级到「度量可视化」。依据四源：ChimeraX alphafold contacts 官方文档（rbvi.ucsf.edu，跨链 <8 Å 残基对之间画线、按该对 PAE 着色、0/5/10/15/20 Å 图例，distance 8 默认、无 PAE 过滤）；CASP RR 官方格式（predictioncenter.org，接触判定 Cβ–Cβ<8 Å 祖定义）；LIVIA（flyark.github.io，cLIR=PAE≤12 & Cβ≤8 双条件体系与线性/环形接触图）；AF3 contact_probs 工具生态（MaybeBio/alphafold-analyser，8 Å 代表原子口径两独立实现）。设计决策：距离用 Cα≤8 Å（解析器单 CA 存储，Cβ 不可得不猜）；距离不过滤 PAE（ChimeraX 语义——颜色传达置信，高 PAE 近距对恰是「接触但朝向可疑」的关注点）；PAE 缺失/非有限的对不上色、不导出（不猜）；2048 对上限诚实截断附警告；仅主模型 + 非 Surface。
+
+1. [完成] 内核 parsers.interface_contacts 增 lines=True 参数：同一 15 Å 网格扫描内顺带收集 ≤8 Å 跨链对（close_pairs ⊆ partner 对），PAE 取两方向 min、round 2，sorted 后导出 {i,j,pae}（上限 CONTACT_MAX_LINES=2048 + linesTruncated）；默认调用返回形状不变（旧契约零破坏）。顺带根治 #20 潜在 bug：directed 构建跳过 None/非有限单元格（JSON null PAE + 邻居对原会 min(None,…) TypeError）。
+2. [完成] 接线：attach_interface_contacts 与 server 导入路径以 lines=True 调用并落 result['interfaceLines']（非空才落）+ 截断警告；store.list() 剥离 $.result.interfaceLines。
+3. [完成] 前端 web/app.js：#contactlines-toggle（title 注明 ChimeraX 口径、五档着色、上限、主模型限定）；applyViewerStyle 顶部 removeAllShapes()（圆柱为命令式 shape，每次重建保持一致）+ 画线块（CA 索引 Map、整数 residueNumber、五档 #2b6cb0/#4fa8d8/#a8c95a/#e0c341/#e89a3c 蓝→黄、radius .1 圆柱、contactLineCount 探针）；surface 拦截 toast。
+4. [完成] 测试：test_result_artifacts 新增 lines 契约（7.5 Å 双线含 12 Å PAE 对照画=无 PAE 过滤文档化、9.5 Å 有接触无线=8-vs-15 区分、双 null 跳过、7 Å×600 密堆 2048 截断、默认调用无 lines 键）；attach 正例（x=7 有线）+ 负例断言扩展；test_api 导入二聚体断言 interfaceLines 缺席（几何 9/10 Å>8）+ store 剥落数组；browser_ranked_models 接触线切换断言（显示=2 线、关=0，18→19 项）+ job-m 缺席断言；README 功能句 + 计数同步。
+
+验证计划：同 #22 十层链。
+验证结果：首链 t9 红——browser_confidence_color_ux 的 vm stub viewer 缺 removeAllShapes（测试基建落后于 #23 新 API 调用，非产品 bug），补 stub 一行 no-op 后按纪律杀链全量重跑；重跑 t1–t10 全绿（全量后端 331 OK / 1 skip / 71.1s；browser_ranked_models 19 项首跑即绿；workspace-ux 5 套件绿）；手动 diff-scoped SEC-GREP CLEAN。另如实记录：新内核测试 2 处预期错（6.5 Å 邻居也成线、9.5 Å 处 PAE=12 对不计接触）由红跑纠正，内核行为始终正确。

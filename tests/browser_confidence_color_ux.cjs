@@ -10,7 +10,7 @@ assert.ok(start>=0&&end>start,'Viewer coloring functions must be present');
 let residues=[],styles=[],surfaces=[],renderCount=0,modelAtoms=[];
 const context={
   state:{style:'cartoon',color:'confidence',modelIndex:0,modelJobId:'job-x',job:{id:'job-x',result:{}},viewer:{
-    removeAllSurfaces(){},setStyle(selection,style){styles.push(style);},
+    removeAllSurfaces(){},removeAllShapes(){},setStyle(selection,style){styles.push(style);},
     addSurface(type,style){surfaces.push(style);},render(){renderCount++;},
     getModel:()=>({selectedAtoms:()=>modelAtoms})
   }},

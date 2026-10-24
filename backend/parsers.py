@@ -226,6 +226,8 @@ def ipsae_row_score(values):
 CONTACT_PAE_CUTOFF = 10.0
 CONTACT_CA_DISTANCE = 15.0
 CONTACT_MAX_RANGES = 512
+CONTACT_LINE_DISTANCE = 8.0
+CONTACT_MAX_LINES = 2048
 
 
 def _index_ranges(indices):
@@ -239,7 +241,7 @@ def _index_ranges(indices):
     return runs
 
 
-def interface_contacts(rows, residues):
+def interface_contacts(rows, residues, lines=False):
     """Confident interface contacts per unordered chain pair, using the AFDB
     ipSAE pair convention (AlphaFold DB FAQ: PAE < 10 A and predicted-structure
     distance < 15 A between residues of different chains) with the ChimeraX
@@ -249,14 +251,23 @@ def interface_contacts(rows, residues):
     one CA per residue). rows yields the matrix rows in axis order; residues
     pair with rows by index. Returns {'contacts': [{a, b, pairs, resA, resB}]
     with inclusive zero-based index runs, 'truncated': bool} and only lists
-    chain pairs with at least one confident contact."""
+    chain pairs with at least one confident contact.
+
+    With lines=True also returns 'lines': [{i, j, pae}] for cross-chain residue
+    pairs within 8 A (the ChimeraX alphafold contacts default and the CASP RR
+    contact criterion), PAE-colored per pair like that tool's display and not
+    filtered by any PAE cutoff. Pairs whose PAE cells are missing or
+    non-finite cannot be colored and are skipped rather than guessed; the list
+    is capped at CONTACT_MAX_LINES with 'linesTruncated': True."""
     size = len(residues)
     limit = CONTACT_CA_DISTANCE * CONTACT_CA_DISTANCE
+    line_limit = CONTACT_LINE_DISTANCE * CONTACT_LINE_DISTANCE
     cells = {}
     for position, residue in enumerate(residues):
         cells.setdefault((int(residue['x'] // CONTACT_CA_DISTANCE), int(residue['y'] // CONTACT_CA_DISTANCE),
                           int(residue['z'] // CONTACT_CA_DISTANCE)), []).append(position)
     partners = {index: [] for index in range(size)}
+    close_pairs = set()
     for position, residue in enumerate(residues):
         gx, gy, gz = int(residue['x'] // CONTACT_CA_DISTANCE), int(residue['y'] // CONTACT_CA_DISTANCE), \
             int(residue['z'] // CONTACT_CA_DISTANCE)
@@ -269,13 +280,18 @@ def interface_contacts(rows, residues):
                         dx = residues[other]['x'] - residue['x']
                         dy = residues[other]['y'] - residue['y']
                         dz = residues[other]['z'] - residue['z']
-                        if dx * dx + dy * dy + dz * dz <= limit:
+                        squared = dx * dx + dy * dy + dz * dz
+                        if squared <= line_limit:
+                            close_pairs.add((position, other))
+                        if squared <= limit:
                             partners[position].append(other)
                             partners[other].append(position)
     directed = {}
     for row_index, row in enumerate(rows):
         for column in partners[row_index]:
-            directed[(row_index, column)] = row[column]
+            value = row[column]
+            if isinstance(value, (int, float)) and math.isfinite(value):
+                directed[(row_index, column)] = value
     grouped = {}
     for (row_index, column), value in directed.items():
         if row_index > column:
@@ -297,7 +313,22 @@ def interface_contacts(rows, residues):
             runs_a, runs_b = runs_a[:CONTACT_MAX_RANGES], runs_b[:CONTACT_MAX_RANGES]
         summary.append({'a': first, 'b': second, 'pairs': entry['pairs'],
                         'resA': runs_a, 'resB': runs_b})
-    return {'contacts': summary, 'truncated': truncated}
+    result = {'contacts': summary, 'truncated': truncated}
+    if lines:
+        line_records = []
+        lines_truncated = False
+        for first, second in sorted(close_pairs):
+            if len(line_records) >= CONTACT_MAX_LINES:
+                lines_truncated = True
+                break
+            pae = min(directed.get((first, second), float('inf')),
+                      directed.get((second, first), float('inf')))
+            if not math.isfinite(pae):
+                continue
+            line_records.append({'i': first, 'j': second, 'pae': round(pae, 2)})
+        result['lines'] = line_records
+        result['linesTruncated'] = lines_truncated
+    return result
 
 
 def parse_confidence(path: Path) -> dict:

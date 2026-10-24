@@ -570,9 +570,15 @@ class StudioApplication:
                         {residue["chain"] for residue in result["residues"]}) >= 2:
                     # Same AFDB pair convention as the engine path; the guard
                     # above already proved the rows align with residues.
-                    summary = interface_contacts(matrix, result["residues"])
+                    summary = interface_contacts(matrix, result["residues"], lines=True)
                     if summary["contacts"]:
                         result["interfaceContacts"] = summary["contacts"]
+                    if summary.get("lines"):
+                        result["interfaceLines"] = summary["lines"]
+                    if summary.get("linesTruncated"):
+                        result.setdefault("warnings", []).append(
+                            "Interface contact lines were truncated at 2048 pairs; "
+                            "the PAE matrix and structure remain downloadable.")
                     if summary["truncated"]:
                         result.setdefault("warnings", []).append(
                             "Interface contact residue ranges were truncated at 512 runs per side; "

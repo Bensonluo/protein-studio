@@ -22,7 +22,7 @@ const detail={
       {rank:1,name:'sample-0',structureUrl:'/api/jobs/job-m/artifact?name=sample-0.pdb',structureFormat:'pdb',meanPlddt:88.1,ptm:0.8,iptm:0.85,rankingScore:0.842},
       {rank:2,name:'sample-1',structureUrl:'/api/jobs/job-m/artifact?name=sample-1.pdb',structureFormat:'pdb',meanPlddt:71.4,ptm:0.6,iptm:0.62,rankingScore:0.610},
     ],artifacts:[{name:'scores.json',url:'/api/jobs/job-m/artifact?name=scores.json',size:2048}]}},
-  'job-r':{...jobs.find(j=>j.id==='job-r'),result:{structureUrl:'/api/jobs/job-r/structure',structureFormat:'pdb',sequenceLength:6,meanPlddt:80.2,chainPtm:[0.82,0.55],chainIptm:[0.71,0.48],interfacePae:[{a:'A',b:'B',mean:3.2}],ipSae:[{a:'A',b:'B',value:0.85}],interfaceContacts:[{a:'A',b:'B',pairs:23,resA:[[11,44],[97,109]],resB:[[4,29]]}],plddt:[],residues:[...Array(6)].map((_,i)=>({aa:'A',chain:'A',residueNumber:i+1})).concat([...Array(4)].map((_,i)=>({aa:'A',chain:'B',residueNumber:i+1}))),provenance:{mode:'reference'},
+  'job-r':{...jobs.find(j=>j.id==='job-r'),result:{structureUrl:'/api/jobs/job-r/structure',structureFormat:'pdb',sequenceLength:6,meanPlddt:80.2,chainPtm:[0.82,0.55],chainIptm:[0.71,0.48],interfacePae:[{a:'A',b:'B',mean:3.2}],ipSae:[{a:'A',b:'B',value:0.85}],interfaceContacts:[{a:'A',b:'B',pairs:23,resA:[[11,44],[97,109]],resB:[[4,29]]}],interfaceLines:[{i:4,j:5,pae:6.5},{i:3,j:5,pae:13}],plddt:[],residues:[...Array(6)].map((_,i)=>({aa:'A',chain:'A',residueNumber:i+1})).concat([...Array(4)].map((_,i)=>({aa:'A',chain:'B',residueNumber:i+1}))),provenance:{mode:'reference'},
     rankedModels:[{rank:1,name:'Polyubiquitin-B',structureUrl:'/api/jobs/job-r/artifact?name=afdb.pdb',structureFormat:'pdb',meanPlddt:80.2}],artifacts:[]}},
 };
 const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.stringify(data)});
@@ -95,6 +95,7 @@ const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.
   checks.push('Switching the picker reloads the selected sample geometry into the viewer and retargets the download link');
   const lowconf=page.locator('#lowconf-toggle');
   assert.equal(await page.locator('#iface-toggle').count(),0);
+  assert.equal(await page.locator('#contactlines-toggle').count(),0);
   assert.match(await lowconf.textContent(),/低置信显示：关/);
   await lowconf.click();
   assert.match(await lowconf.textContent(),/淡化 <70/);
@@ -178,11 +179,21 @@ const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.
   await ifaceBtn.click();
   assert.match(await ifaceBtn.textContent(),/界面残基：关/);
   await page.waitForFunction(()=>state.viewer.getModel().selectedAtoms({}).every(a=>!a.style?.stick),null,{timeout:8000});
+  const linesBtn=page.locator('#contactlines-toggle');
+  assert.equal(await linesBtn.count(),1);
+  assert.match(await linesBtn.textContent(),/接触线：关/);
+  await linesBtn.click();
+  assert.match(await linesBtn.textContent(),/接触线：显示/);
+  await page.waitForFunction(()=>state.contactLineCount===2,null,{timeout:8000});
+  await linesBtn.click();
+  assert.match(await linesBtn.textContent(),/接触线：关/);
+  await page.waitForFunction(()=>state.contactLineCount===0,null,{timeout:8000});
   checks.push('Per-chain pTM and average interface ipTM render for multichain jobs, banded by the ipTM thresholds (AF3 Server convention)');
   checks.push('Interface PAE means per chain pair shown as chips (⟨PAE⟩_int, Zhu et al. 2023 convention, both directed blocks averaged)');
   checks.push('Interface chips append ipSAE per chain pair (Dunbrack 2025 convention, max of both directions) colored by AFDB interpretation bands (>=0.8/0.7/0.6)');
   checks.push('Confident interface contact rows list per-chain participating residue ranges (AFDB PAE<10A + CA<15A pair convention, ChimeraX-style participating-residue reporting)');
   checks.push('Interface residue toggle highlights backend-computed confident-contact residues as accent sticks on the primary model only (PyMOL byres-within convention); absent on sample views and contact-less jobs');
+  checks.push('Contact-lines toggle draws PAE-colored cylinders between 8 A cross-chain pairs (ChimeraX alphafold contacts convention, 0/5/10/15/20 A bands) on the primary model only and clears them on toggle-off');
   checks.push('Single-model reference jobs keep the plain viewer without a picker or per-row view actions');
   await page.locator('[data-view="jobs"]').click();
   await page.locator('[data-job-id="job-m"] .row-action').click();

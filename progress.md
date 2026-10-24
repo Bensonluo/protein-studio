@@ -189,3 +189,9 @@
 - 研究：Jalview（hover→tooltip+linked views）、PAE Viewer PMC10320053（青/橙双色打分/对齐约定）、ChimeraX #17112（双色惯例）、EBI AFDB（联动标配）；hover 联动不动 click 既有窗口契约。
 - 实现：pae-viewer 残基身份守卫（token 不猜、unknown 轴仅 inline 放行）+ tooltip 身份 + setPAEHover；app.js 序列条双类 + applyViewerStyle 双色球棍（主模型/非 surface 守卫、key 去重、移出即清）。
 - 验证：pae_lazy 18/18 ×2 首跑即绿（含 3D 双色原子断言与 token 负例）；十层链 10/10（全量后端 330 OK/1 skip/74.8s）；SEC-GREP 手动复扫 CLEAN。English commit: feat: PAE hover residue identity and linked highlighting。
+
+### 迭代 #23（2026-10-25）：按 PAE 着色的界面接触线
+
+- 研究：ChimeraX alphafold contacts（<8 Å 画线按 PAE 着色、无 PAE 过滤）+ CASP RR 8 Å + LIVIA cLIR + AF3 contact_probs 工具（四源）；距离口径 Cα（单 CA 存储）。
+- 实现：内核 lines=True（8 Å 对 + min-PAE + 2048 截断，顺带根治 #20 None-PAE TypeError）；attach/server 落 interfaceLines；store 剥离；前端 toggle + addCylinder 五档蓝→黄 + removeAllShapes 重建。
+- 验证：首链 t9 红（vm stub 缺新 API，测试基建问题）→ 修 stub 重跑 10/10 全绿（后端 331 OK/1 skip；ranked 19 项首跑即绿）；SEC-GREP CLEAN。English commit: feat: PAE-colored interface contact lines。

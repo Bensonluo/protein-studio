@@ -563,9 +563,14 @@ def attach_interface_contacts(result, descriptor, root):
             or descriptor.get('rows') != len(result.get('residues') or []):
         return
     summary = interface_contacts(_iter_pae_rows(_validate_descriptor(descriptor, root), descriptor['rows']),
-                                 result['residues'])
+                                 result['residues'], lines=True)
     if summary['contacts']:
         result['interfaceContacts'] = summary['contacts']
+    if summary.get('lines'):
+        result['interfaceLines'] = summary['lines']
+    if summary.get('linesTruncated'):
+        result.setdefault('warnings', []).append(
+            'Interface contact lines were truncated at 2048 pairs; the PAE matrix and structure remain downloadable.')
     if summary['truncated']:
         result.setdefault('warnings', []).append(
             'Interface contact residue ranges were truncated at 512 runs per side; the PAE matrix and structure remain downloadable.')
