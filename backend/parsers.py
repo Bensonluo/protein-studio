@@ -230,6 +230,19 @@ CONTACT_LINE_DISTANCE = 8.0
 CONTACT_MAX_LINES = 2048
 LIS_PAE_CUTOFF = 12.0
 
+# pDockQ sigmoid (Bryant et al. 2022, Nat Commun) and pDockQ2 sigmoid
+# (Zhu et al. 2023, Bioinformatics): interface-quality scores fitted to
+# DockQ from AlphaFold confidence features.
+PDOCKQ_L = 0.724
+PDOCKQ_X0 = 152.611
+PDOCKQ_K = 0.052
+PDOCKQ_B = 0.018
+PDOCKQ2_L = 1.31
+PDOCKQ2_X0 = 84.733
+PDOCKQ2_K = 0.075
+PDOCKQ2_B = 0.005
+PDOCKQ2_PAE_SCALE = 10.0
+
 
 def _index_ranges(indices):
     """Compress sorted residue indices into inclusive [start, end] runs."""
@@ -273,7 +286,23 @@ def interface_contacts(rows, residues, lines=False):
     counts twice), iLIA = sqrt(LIA * cLIA) and iLISA = iLIS * iLIA. The
     contact distance is C-alpha here (one CA per residue) where LIVIA uses
     C-beta <= 8 A. Only chain pairs with at least one confident cell are
-    listed."""
+    listed.
+
+    Rows additionally carry pDockQ and pDockQ2 when their inputs exist
+    (Bryant et al. 2022 Nat Commun; Zhu et al. 2023 Bioinformatics). Both
+    measure contacts as C-alpha <= 8 A - the same set the lines use - where
+    the papers use C-beta (the Zhu reference implementation pdockq2.py also
+    computes CA contacts, so this is a documented variant, not a guess).
+    pDockQ is the mean pLDDT over the pair's interface residues (both
+    chains, each residue once) times log10 of the contact count through a
+    fitted sigmoid; Zhu et al. note it over-predicts on AlphaFold-Multimer
+    output. pDockQ2 is per direction: the contact-cell mean of the row
+    residue's pLDDT times the mean of 1/(1+(PAE/10)^2) over the same
+    cells, through its sigmoid, aggregated as the maximum of the two
+    directions (the paper defines no interface-level aggregate; foldmetrics
+    uses max). pDockQ needs pLDDT on every interface residue, pDockQ2
+    skips contact cells with missing or non-finite PAE; when a score cannot
+    be computed its key is omitted rather than guessed."""
     size = len(residues)
     limit = CONTACT_CA_DISTANCE * CONTACT_CA_DISTANCE
     line_limit = CONTACT_LINE_DISTANCE * CONTACT_LINE_DISTANCE
@@ -327,6 +356,28 @@ def interface_contacts(rows, residues, lines=False):
             if (row_index, column) in close_pairs or (column, row_index) in close_pairs:
                 entry['contact_sum'][forward] += confidence
                 entry['contact_count'][forward] += 1
+    plddt_values = [residue.get('plddt') for residue in residues]
+    pdockq_stats = {}
+    for first_index, second_index in close_pairs:
+        first_chain = residues[first_index]['chain']
+        second_chain = residues[second_index]['chain']
+        key = (first_chain, second_chain) if first_chain < second_chain else (second_chain, first_chain)
+        entry = pdockq_stats.setdefault(key, {'n': 0, 'interface': set(),
+                                              'side_plddt': [0.0, 0.0], 'side_n': [0, 0],
+                                              'side_t': [0.0, 0.0]})
+        entry['n'] += 1
+        entry['interface'].add(first_index)
+        entry['interface'].add(second_index)
+        for row_index, column_index in ((first_index, second_index), (second_index, first_index)):
+            side = 0 if residues[row_index]['chain'] == key[0] else 1
+            plddt = plddt_values[row_index]
+            if not isinstance(plddt, (int, float)) or not math.isfinite(plddt):
+                continue
+            pae = directed.get((row_index, column_index))
+            if isinstance(pae, (int, float)) and math.isfinite(pae):
+                entry['side_plddt'][side] += plddt
+                entry['side_n'][side] += 1
+                entry['side_t'][side] += 1.0 / (1.0 + (pae / PDOCKQ2_PAE_SCALE) ** 2)
     grouped = {}
     for (row_index, column), value in directed.items():
         if row_index > column:
@@ -364,6 +415,23 @@ def interface_contacts(rows, residues, lines=False):
                            'clis': round(clis_value, 4), 'ilis': round(ilis_value, 4),
                            'lia': lia, 'clia': clia, 'ilia': round(ilia_value, 1),
                            'ilisa': round(ilis_value * ilia_value, 2)})
+        stats = pdockq_stats.get((first, second))
+        if stats:
+            interface_plddt = [plddt_values[index] for index in stats['interface']]
+            if interface_plddt and all(isinstance(value, (int, float)) and math.isfinite(value)
+                                       for value in interface_plddt):
+                x = sum(interface_plddt) / len(interface_plddt) * math.log10(stats['n'])
+                score_rows[-1]['pdockq'] = round(
+                    PDOCKQ_L / (1.0 + math.exp(-PDOCKQ_K * (x - PDOCKQ_X0))) + PDOCKQ_B, 3)
+            sides = []
+            for side in (0, 1):
+                if stats['side_n'][side]:
+                    x = (stats['side_plddt'][side] / stats['side_n'][side]) \
+                        * (stats['side_t'][side] / stats['side_n'][side])
+                    sides.append(PDOCKQ2_L / (1.0 + math.exp(-PDOCKQ2_K * (x - PDOCKQ2_X0)))
+                                 + PDOCKQ2_B)
+            if sides:
+                score_rows[-1]['pdockq2'] = round(max(sides), 3)
     result = {'contacts': summary, 'scores': score_rows, 'truncated': truncated}
     if lines:
         line_records = []

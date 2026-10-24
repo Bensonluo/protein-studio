@@ -22,7 +22,7 @@ const detail={
       {rank:1,name:'sample-0',structureUrl:'/api/jobs/job-m/artifact?name=sample-0.pdb',structureFormat:'pdb',meanPlddt:88.1,ptm:0.8,iptm:0.85,rankingScore:0.842},
       {rank:2,name:'sample-1',structureUrl:'/api/jobs/job-m/artifact?name=sample-1.pdb',structureFormat:'pdb',meanPlddt:71.4,ptm:0.6,iptm:0.62,rankingScore:0.610},
     ],artifacts:[{name:'scores.json',url:'/api/jobs/job-m/artifact?name=scores.json',size:2048}]}},
-  'job-r':{...jobs.find(j=>j.id==='job-r'),result:{structureUrl:'/api/jobs/job-r/structure',structureFormat:'pdb',sequenceLength:6,meanPlddt:80.2,chainPtm:[0.82,0.55],chainIptm:[0.71,0.48],interfacePae:[{a:'A',b:'B',mean:3.2}],ipSae:[{a:'A',b:'B',value:0.85}],interfaceScores:[{a:'A',b:'B',lis:0.83,clis:0.79,ilis:0.81,lia:24,clia:18,ilia:20.78,ilisa:16.85}],interfaceContacts:[{a:'A',b:'B',pairs:23,resA:[[11,44],[97,109]],resB:[[4,29]]}],interfaceLines:[{i:4,j:5,pae:6.5},{i:3,j:5,pae:13},{i:5,j:6,pae:6.5},{i:4,j:6,pae:13}],plddt:[],residues:[...Array(6)].map((_,i)=>({aa:'A',chain:'A',residueNumber:i+1})).concat([...Array(4)].map((_,i)=>({aa:'A',chain:'B',residueNumber:i+1}))),provenance:{mode:'reference'},
+  'job-r':{...jobs.find(j=>j.id==='job-r'),result:{structureUrl:'/api/jobs/job-r/structure',structureFormat:'pdb',sequenceLength:6,meanPlddt:80.2,chainPtm:[0.82,0.55],chainIptm:[0.71,0.48],interfacePae:[{a:'A',b:'B',mean:3.2}],ipSae:[{a:'A',b:'B',value:0.85}],interfaceScores:[{a:'A',b:'B',lis:0.83,clis:0.79,ilis:0.81,lia:24,clia:18,ilia:20.78,ilisa:16.85,pdockq:0.52,pdockq2:0.61}],interfaceContacts:[{a:'A',b:'B',pairs:23,resA:[[11,44],[97,109]],resB:[[4,29]]}],interfaceLines:[{i:4,j:5,pae:6.5},{i:3,j:5,pae:13},{i:5,j:6,pae:6.5},{i:4,j:6,pae:13}],plddt:[],residues:[...Array(6)].map((_,i)=>({aa:'A',chain:'A',residueNumber:i+1})).concat([...Array(4)].map((_,i)=>({aa:'A',chain:'B',residueNumber:i+1}))),provenance:{mode:'reference'},
     rankedModels:[{rank:1,name:'Polyubiquitin-B',structureUrl:'/api/jobs/job-r/artifact?name=afdb.pdb',structureFormat:'pdb',meanPlddt:80.2}],artifacts:[]}},
 };
 const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.stringify(data)});
@@ -167,7 +167,10 @@ const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.
   assert.match(await chainConf.locator('.pae-interface-chip').textContent(),/A↔B 界面 PAE 3\.2 Å/);
   assert.match(await chainConf.locator('.pae-interface-chip').textContent(),/ipSAE 0\.85/);
   assert.match(await chainConf.locator('.pae-interface-chip').textContent(),/iLIS 0\.81/);
-  assert.equal(await chainConf.locator('.ipsae-band.ipsae-high').count(),2);
+  assert.match(await chainConf.locator('.pae-interface-chip').textContent(),/pDockQ 0\.52/);
+  assert.match(await chainConf.locator('.pae-interface-chip').textContent(),/pDockQ2 0\.61/);
+  assert.equal(await chainConf.locator('.ipsae-band.ipsae-high').count(),3);
+  assert.equal(await chainConf.locator('.ipsae-band.ipsae-mid').count(),1);
   assert.equal(await chainConf.locator('.pae-contact-row').count(),1);
   const contactText=await chainConf.locator('.pae-contact-row').textContent();
   assert.match(contactText,/A↔B：高置信接触 23 对/);
@@ -233,6 +236,7 @@ const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.
   checks.push('Inter-chain 2D contact map renders one dot per 8 A cross-chain pair with per-pair hover titles and the 3D contact-line PAE bands (COcaDA axis-per-chain convention, LIVIA linear contact map semantics); PAE-less pairs draw no dot');
   checks.push('Circular contact map renders chain arcs sized by length with one chord per cross-chain contact pair (LIVIA chord diagram / AlphaBridge ribbon_plot convention), same five-band PAE colors and hover titles as the 2D map and 3D lines');
   checks.push('Sequence row marks confident interface-contact residues with a chain-palette underline and tooltip tag (LIVIA sequence-viewer LIR/cLIR highlighting, ProSAT+/RCSB sequence-feature mapping convention); absent without contact data and on sample views via the shared primary-model selection guard');
+  checks.push('Interface chips render pDockQ and pDockQ2 with DockQ-class bands (Bryant et al. 2022; Zhu et al. 2023; CA-for-CB variant and AFM over-prediction caveats in the tooltip); keys absent when pLDDT or contact-cell PAE are missing');
   checks.push('Single-model reference jobs keep the plain viewer without a picker or per-row view actions');
   await page.locator('[data-view="jobs"]').click();
   await page.locator('[data-job-id="job-m"] .row-action').click();

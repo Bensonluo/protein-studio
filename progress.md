@@ -231,3 +231,9 @@
 - 源：LIVIA sequence viewer（LIR/cLIR 序列级高亮惯例）+ ProSAT+（H-ITS，序列特征↔结构高亮同型）+ RCSB Sequence Annotations Viewer / Jalview（序列特征轨道通行惯例）（三源）。
 - 实现：renderSequence 逐残基判属 interfaceContactSelection()（与 #21/#26 同一后端高置信接触集，仅主模型）→ 链色下划线（同 2D 图/chord 调色板）+ title 标注「界面接触残基」；单一诚实层、不造假 LIR 层；residueNumber 非整/链不匹配跳过。
 - 验证：产品侧首红——新代码把返回数组当 Map 用（.get 抛 TypeError 断渲染管线），改 Map-of-Sets 包装后修复；browser_ranked_models 24/24 绿；十层链 10/10（后端 332 OK/1 skip/73.8s，零后端改动）；SEC-GREP 手动 diff-scoped CLEAN。English commit: feat: sequence interface residue marking。
+
+### 2026-10-25 迭代 #30：逐链对 pDockQ/pDockQ2 界面置信度（feat: per-chain-pair pdockq and pdockq2 interface scores）
+
+- 源：Bryant et al. 2022 Nat Comms（pDockQ 原文公式与 sigmoid 常数）+ Zhu et al. 2023 Bioinformatics btad424/PMC10348836（pDockQ2 原文、AFM 偏高警示、其参考实现 pdockq2.py 本用 Cα）+ foldmetrics 变体表（Cα-for-Cβ 文档化变体）+ ProteinIQ DockQ 指南（≥0.23/0.5 阈值）+ LIVIA pDockQ 家族表（五源）。
+- 实现：backend interface_contacts 在 close_pairs 单遍累积逐链对 n/界面残基并集/逐方向接触格 plddt 与 T=1/(1+(PAE/10)²) 和；score_rows 追加 pdockq（⟨pLDDT⟩_int×log₁₀n 过 sigmoid）与 pdockq2（逐方向乘积过 sigmoid 取 max，foldmetrics 惯例）；不可算键缺席（无 plddt / 接触格 PAE 缺失）；纯物理接触无 PAE 支持的链对不因 pDockQ 进表（Zhu 指出的假阳性类，不放大）。前端 chips 分带 + tooltip 公式/Cα 变体/AFM 警示；chips 块整体重写为 parts-array 结构。
+- 验证：六残基 fixture 手算 pdockq=0.019/pdockq2=0.395 与实现精确一致；三条诚实路径（无 plddt 双键缺席、接触格 PAE 缺失 pdockq2 缺席 pdockq 保留、无 PAE 合格格整行缺席）；legacy 精确断言零改动（fixture 几何 9Å>8 → 键自然缺席）；browser_ranked_models 25/25；十层链 10/10（后端 333 OK/1 skip/72.2s）；SEC-GREP 手动 diff-scoped CLEAN。产品侧两红记录：嵌套模板编辑致 SyntaxError（重写 parts-array 根治）、断言算术错（pDockQ2 0.61 实为 mid 非我期待的 high，产品分带逻辑正确）。English commit: feat: per-chain-pair pdockq and pdockq2 interface scores。

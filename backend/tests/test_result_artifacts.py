@@ -240,6 +240,41 @@ class ResultArtifactsTests(unittest.TestCase):
         skipped = parsers.interface_contacts(sparse, residues)
         self.assertEqual(skipped['scores'][0]['lia'], 3)
 
+    def test_interface_scores_carry_pdockq_family(self):
+        # pDockQ / pDockQ2 (Bryant et al. 2022 Nat Commun; Zhu et al. 2023
+        # Bioinformatics): fitted-DockQ sigmoid scores over the same C-alpha
+        # <= 8 A contact set the lines use. pDockQ averages pLDDT over the
+        # pair's interface residues times log10 of the contact count; pDockQ2
+        # is per direction (contact-cell mean pLDDT times mean 1/(1+(PAE/10)^2))
+        # aggregated as the max of the two directions.
+        residues = [{'chain': 'A', 'x': 0.0, 'y': 0.0, 'z': 0.0, 'plddt': 90.0},
+                    {'chain': 'A', 'x': 0.0, 'y': 30.0, 'z': 0.0, 'plddt': 80.0},
+                    {'chain': 'A', 'x': 0.0, 'y': 60.0, 'z': 0.0, 'plddt': 75.0},
+                    {'chain': 'B', 'x': 5.0, 'y': 0.0, 'z': 0.0, 'plddt': 85.0},
+                    {'chain': 'B', 'x': 40.0, 'y': 0.0, 'z': 0.0, 'plddt': 60.0},
+                    {'chain': 'B', 'x': 5.0, 'y': 30.0, 'z': 0.0, 'plddt': 70.0}]
+        matrix = [[0.0 if residues[i]['chain'] == residues[j]['chain'] else 4.0
+                   for j in range(6)] for i in range(6)]
+        scores = parsers.interface_contacts(matrix, residues)['scores']
+        # Two 5 A contacts (A0-B0, A1-B2): pDockQ x = 81.25 * log10(2);
+        # pDockQ2 side A x = 85.0 * 1/(1+(4/10)^2) = 73.28 is the max.
+        self.assertEqual(scores[0]['pdockq'], 0.019)
+        self.assertEqual(scores[0]['pdockq2'], 0.395)
+        # Without pLDDT neither key is guessed.
+        for residue in residues:
+            residue.pop('plddt')
+        scores = parsers.interface_contacts(matrix, residues)['scores']
+        self.assertNotIn('pdockq', scores[0])
+        self.assertNotIn('pdockq2', scores[0])
+        # Contact cells with missing PAE keep pDockQ but drop pDockQ2.
+        partial = [{'chain': 'A', 'x': 0.0, 'y': 0.0, 'z': 0.0, 'plddt': 90.0},
+                   {'chain': 'A', 'x': 0.0, 'y': 10.0, 'z': 0.0, 'plddt': 80.0},
+                   {'chain': 'B', 'x': 5.0, 'y': 0.0, 'z': 0.0, 'plddt': 85.0}]
+        sparse = [[0.0, 0.0, None], [0.0, 0.0, 4.0], [None, 4.0, 0.0]]
+        scores = parsers.interface_contacts(sparse, partial)['scores']
+        self.assertEqual(scores[0]['pdockq'], 0.018)
+        self.assertNotIn('pdockq2', scores[0])
+
     def test_attach_interface_contacts_requires_aligned_residue_axes(self):
         result = artifacts.stream_confidence(
             self.source({'pae': [[0, 3], [3, 0]]}), self.root, build_pae=True, axis_kind='residue')

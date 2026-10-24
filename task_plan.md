@@ -461,3 +461,14 @@
 
 验证计划：同 #28 十层链。
 验证结果：诚实记录一处产品侧首红——t5 超时：新代码把 interfaceContactSelection() 返回值当 Map 用（ifaceGroups.get(chain)），实际返回数组 [{chain,resi}] → TypeError 打断整个渲染管线；修正为先包装 ifaceMarks=new Map(groups.map(g=>[g.chain,new Set(g.resi)]))。修正后 browser_ranked_models 24/24 绿；十层链 t1–t10 全绿（全量后端 332 OK/1 skip/73.8s，零后端改动）；手动 diff-scoped SEC-GREP CLEAN。
+
+## 2026-10-25 持续迭代：逐链对 pDockQ/pDockQ2 界面置信度
+
+#29 后界面分析有了 LIS/ipSAE 两族得分，缺业界最通用的 DockQ 代理族——pDockQ 系是 AlphaFold-Multimer 界面质量的既成标准。依据五源：Bryant et al. 2022 Nat Comms（pDockQ 原文：x=界面残基⟨pLDDT⟩×log₁₀(接触数) 过 sigmoid L=0.724 x₀=152.611 k=0.052 b=0.018，界面残基=参与 ≥1 跨链 Cβ≤8Å 接触的两链残基并集去重）；Zhu et al. 2023 Bioinformatics btad424/PMC10348836（pDockQ2 原文：逐链方向 X=⟨1/(1+(PAE/10)²)⟩×接触加权⟨pLDDT⟩ 过 sigmoid L=1.31 x₀=84.733 k=0.075 b=0.005，DockQ 分级 ≥0.23/0.49/0.80；并明确指出 pDockQ 在 AFM 多聚体上偏高）；其参考实现 pdockq2.py 本身用 Cα 接触（foldmetrics 变体表佐证 Cα-for-Cβ 为文档化变体而非猜测）；ProteinIQ DockQ 指南（≥0.23 可接受 / ≥0.5 confident 阈值）；LIVIA pDockQ 家族表（工具族全景）。设计决策：接触集与 #23/#27 共用 Cα≤8Å close_pairs（零新几何）；scores 行仍按 LIS 家族键列出（有合格 PAE<12 格的链对）——纯物理接触但无 PAE 支持的链对不因 pDockQ 进表（那恰是 Zhu 指出的 pDockQ 假阳性类，不放大它）；pDockQ 需全部界面残基有 plddt（all-or-nothing，不猜均值）；pDockQ2 逐接触格跳过 PAE 缺失格、聚合取两方向最大（论文未定义聚合，foldmetrics 惯例）；不可算则键缺席。前端 chips 复用 ipsae-band 类分带（pDockQ ≥0.5/0.23；pDockQ2 DockQ 分级 ≥0.8/0.49/0.23），tooltip 全文标注公式出处 + Cα 代 Cβ 变体声明 + AFM 偏高警示（分带参考非 DockQ 标定）。
+
+1. [完成] backend/parsers.py：PDOCKQ_*/PDOCKQ2_* 常量块；lis 行循环后 close_pairs 单遍累积 pdockq_stats（n 接触数、interface 残基索引并集、逐方向 side_plddt/side_n/side_t，接触格 plddt+PAE 双有限才计入）；score_rows 追加 pdockq（round 3，⟨pLDDT⟩_int×log₁₀n 过 sigmoid）与 pdockq2（逐方向乘积过 sigmoid 取 max），不可算缺席；docstring 全文声明公式、变体、诚实规则。
+2. [完成] web/app.js：pdockqBand/pdockq2Band 分带函数；chips 块整体重写为 tip[]/spans[] parts-array join 结构（原嵌套模板在我首轮编辑中被改坏——19 反引号嵌套地狱不可维护，结构性重写根治）；tip 追加 pDockQ/pdockq2 释义段，spans 追加两个条件 chip。
+3. [完成] 测试：test_result_artifacts 新增 test_interface_scores_carry_pdockq_family（6 残基 fixture 手算 pdockq=0.019/pdockq2=0.395；无 plddt 双键缺席；接触格 PAE 缺失 pdockq2 缺席 pdockq 保留 0.018）；test_api 二聚体 fixture 最近跨链对 9Å>8 → close_pairs 空 → 键缺席，legacy 精确断言零改动验证；browser job-r interfaceScores 加 pdockq:0.52/pdockq2:0.61，断言 chip 文本 + high=3/mid=1（0.61 按 DockQ 分级是 mid）；checks 25 项。
+4. [完成] README.md：chips 描述句 + 公式/变体/警示说明 + model-ui 25 项计数。
+
+验证计划：同 #29 十层链（/tmp/verify30.sh）。
