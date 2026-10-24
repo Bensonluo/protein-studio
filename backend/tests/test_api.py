@@ -302,7 +302,8 @@ class StorageTests(unittest.TestCase):
             store.claim()
             arrays = {"pae": [[0.0, 2.0], [3.0, 0.0]],
                       "residues": [{"aa": "A"}, {"aa": "G"}],
-                      "plddt": [90.0, 80.0], "rankedModels": [{"rank": 1}]}
+                      "plddt": [90.0, 80.0], "rankedModels": [{"rank": 1}],
+                      "chainPtm": [0.82, 0.55], "chainIptm": [0.71, 0.48]}
             store.finish(job["id"], "completed",
                          result={"sequenceLength": 2, "meanPlddt": 88.1, "iptm": 0.72, **arrays})
             summary = store.list()[0]["result"]

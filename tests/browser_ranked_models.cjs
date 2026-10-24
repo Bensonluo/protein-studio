@@ -12,7 +12,7 @@ const atom=(serial,resn,chain,resi,x,y,z,b)=>`ATOM  ${String(serial).padStart(5)
 const pdbPrimary=[...Array(6)].map((_,i)=>atom(i+1,'ALA','A',i+1,1+i*1.2,2,3,88-i*3)).join('\n')+'\nEND\n';
 const pdbModel2=[...Array(10)].map((_,i)=>atom(i+1,'GLY','A',i+1,1+i*1.1,3,4,[92,70,35,64,48,55,81,12,76,39][i])).join('\n')+'\nEND\n';
 const jobs=[
-  {id:'job-r',name:'公开参考回放',engine:'reference',status:'completed',updatedAt:'2026-10-24T10:00:00Z',chains:[{id:'A',sequence:'ACDEFG'}],result:{sequenceLength:6,meanPlddt:80.2}},
+  {id:'job-r',name:'公开参考回放',engine:'reference',status:'completed',updatedAt:'2026-10-24T10:00:00Z',chains:[{id:'A',sequence:'ACDEFG'},{id:'B',sequence:'ACDE'}],result:{sequenceLength:6,meanPlddt:80.2}},
   {id:'job-m',name:'多采样模型任务',engine:'alphafold3',status:'completed',updatedAt:'2026-10-24T10:00:00Z',chains:[{id:'A',sequence:'ACDEFGHIKL'}],result:{sequenceLength:10,meanPlddt:81.0,iptm:0.85}},
   {id:'job-q',name:'排队中任务',engine:'alphafold3',status:'queued',updatedAt:'2026-10-24T10:00:00Z',chains:[{id:'A',sequence:'ACDEFG'}]},
 ];
@@ -22,7 +22,7 @@ const detail={
       {rank:1,name:'sample-0',structureUrl:'/api/jobs/job-m/artifact?name=sample-0.pdb',structureFormat:'pdb',meanPlddt:88.1,ptm:0.8,iptm:0.85,rankingScore:0.842},
       {rank:2,name:'sample-1',structureUrl:'/api/jobs/job-m/artifact?name=sample-1.pdb',structureFormat:'pdb',meanPlddt:71.4,ptm:0.6,iptm:0.62,rankingScore:0.610},
     ],artifacts:[{name:'scores.json',url:'/api/jobs/job-m/artifact?name=scores.json',size:2048}]}},
-  'job-r':{...jobs.find(j=>j.id==='job-r'),result:{structureUrl:'/api/jobs/job-r/structure',structureFormat:'pdb',sequenceLength:6,meanPlddt:80.2,plddt:[],residues:[],provenance:{mode:'reference'},
+  'job-r':{...jobs.find(j=>j.id==='job-r'),result:{structureUrl:'/api/jobs/job-r/structure',structureFormat:'pdb',sequenceLength:6,meanPlddt:80.2,chainPtm:[0.82,0.55],chainIptm:[0.71,0.48],plddt:[],residues:[],provenance:{mode:'reference'},
     rankedModels:[{rank:1,name:'Polyubiquitin-B',structureUrl:'/api/jobs/job-r/artifact?name=afdb.pdb',structureFormat:'pdb',meanPlddt:80.2}],artifacts:[]}},
 };
 const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.stringify(data)});
@@ -65,6 +65,7 @@ const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.
   assert.match(rank1Panel,/81\.0/);
   assert.doesNotMatch(rank1Panel,/B 因子/);
   checks.push('Model picker lists every ranked sample with its AF3-style rank, pLDDT and ranking score, rank 1 selected by default');
+  assert.equal(await page.locator('.chain-conf-panel').count(),0);
   const modelTable=page.locator('section.panel:has-text("模型与结果制品") tbody');
   const headers=await page.locator('section.panel:has-text("模型与结果制品") thead th').allTextContents();
   assert.ok(headers.includes('排名分'));
@@ -133,6 +134,15 @@ const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.
   assert.equal(await page.locator('[data-view-model]').count(),0);
   assert.equal(await page.locator('a[href*="/archive"]').count(),0);
   assert.equal(await page.locator('.score-compare').count(),0);
+  const chainConf=page.locator('.chain-conf-panel');
+  assert.equal(await chainConf.count(),1);
+  const chainRows=await chainConf.locator('tbody tr').allTextContents();
+  assert.match(chainRows[0],/A/);assert.match(chainRows[0],/0\.82/);assert.match(chainRows[0],/ipTM 0\.71/);
+  assert.match(chainRows[1],/B/);assert.match(chainRows[1],/ipTM 0\.48/);
+  assert.equal(await chainConf.locator('.campaign-score-band.gray').count(),1);
+  assert.equal(await chainConf.locator('.campaign-score-band.low').count(),1);
+  assert.match(await chainConf.locator('.analysis-title-note').textContent(),/非对称界面建议结合 PAE/);
+  checks.push('Per-chain pTM and average interface ipTM render for multichain jobs, banded by the ipTM thresholds (AF3 Server convention)');
   checks.push('Single-model reference jobs keep the plain viewer without a picker or per-row view actions');
   await page.locator('[data-view="jobs"]').click();
   await page.locator('[data-job-id="job-m"] .row-action').click();

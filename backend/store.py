@@ -132,6 +132,7 @@ class JobStore:
             rows = conn.execute("""
                 SELECT json_remove(document,
                     '$.result.pae', '$.result.residues', '$.result.plddt',
+                    '$.result.chainPtm', '$.result.chainIptm',
                     '$.result.rankedModels') AS document
                 FROM jobs ORDER BY created_at DESC, id DESC LIMIT ?
             """, (limit,))

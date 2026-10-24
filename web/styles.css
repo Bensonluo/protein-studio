@@ -42,3 +42,4 @@
 .score-bar-row.current .score-bar{opacity:1}
 .score-bar-value{font-size:9px;color:#6b8271;text-align:right;font-family:"SFMono-Regular",Consolas,monospace}
 .score-bar-row.current .score-bar-value{font-weight:700;color:#31543f}
+.chain-conf-panel th,.chain-conf-panel td{padding:8px 17px;white-space:normal}

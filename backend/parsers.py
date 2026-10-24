@@ -223,6 +223,14 @@ def parse_confidence(path: Path) -> dict:
     vector = data.get('plddt')
     if isinstance(vector, list) and vector and all(_number(x) is not None and 0 <= float(x) <= 100 for x in vector):
         result['plddt'] = [float(x) for x in vector]
+    # AF3 multichain convention (output.md / EBI): chain_ptm / chain_iptm are
+    # [num_chains] vectors; chain_iptm[i] is chain i's average interface
+    # confidence against all other chains. Bounded to keep records small.
+    for field, key in (('chain_ptm', 'chainPtm'), ('chain_iptm', 'chainIptm')):
+        vector = data.get(field)
+        if isinstance(vector, list) and 0 < len(vector) <= 64 and all(
+                _number(x) is not None and 0 <= float(x) <= 1 for x in vector):
+            result[key] = [float(x) for x in vector]
     matrix = data.get('pae', data.get('predicted_aligned_error'))
     if isinstance(matrix, list) and matrix:
         n = len(matrix)

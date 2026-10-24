@@ -29,6 +29,7 @@ MAX_CELLS = 25_000_000
 INLINE_CELLS = 128 * 128
 MAX_PREVIEW = 256
 MAX_TILE = 128
+MAX_CHAINS = 64
 HASH = re.compile(r'^[0-9a-f]{64}$')
 
 
@@ -166,6 +167,7 @@ def stream_confidence(path, root=None, *, build_pae=False, axis_kind='unknown', 
     result, vector, axes, seen = {}, [], {}, set()
     active_vectors = set()
     vector_overflow = False
+    chain_values, chain_overflow = {}, set()
     matrix_prefix, row_count, column_count, row_size = None, 0, None, None
     matrix_done, matrix_seen, root_type, objects = False, False, None, 0
     minimum, maximum = math.inf, -math.inf
@@ -201,7 +203,8 @@ def stream_confidence(path, root=None, *, build_pae=False, axis_kind='unknown', 
                 local = prefix[5:] if root_type == 'start_array' and prefix.startswith('item.') else prefix
                 base = 'item' if root_type == 'start_array' else ''
                 if prefix == base and event == 'map_key' and value in {
-                        'pae', 'predicted_aligned_error', 'plddt', 'ptm', 'iptm', 'ranking_score', 'token_chain_ids', 'token_res_ids'}:
+                        'pae', 'predicted_aligned_error', 'plddt', 'ptm', 'iptm', 'ranking_score',
+                        'chain_ptm', 'chain_iptm', 'token_chain_ids', 'token_res_ids'}:
                     if value in seen:
                         raise ValueError('Duplicate scientific confidence field: ' + value)
                     seen.add(value)
@@ -212,6 +215,13 @@ def stream_confidence(path, root=None, *, build_pae=False, axis_kind='unknown', 
                         active_vectors.discard(local)
                     elif event != 'null':
                         raise ValueError('Confidence vectors and token axes must be arrays or null.')
+                if local in {'chain_ptm', 'chain_iptm'} and local in seen:
+                    if event == 'start_array':
+                        active_vectors.add(local)
+                    elif event == 'end_array':
+                        active_vectors.discard(local)
+                    elif event != 'null':
+                        raise ValueError('Chain confidence vectors must be arrays or null.')
                 if local in {'ptm', 'iptm', 'ranking_score'} and local in seen and event not in {'number', 'integer', 'double', 'null'}:
                     raise ValueError('Confidence scalar metrics must be numeric or null.')
                 if local in {'ptm', 'iptm', 'ranking_score'} and event in {'number', 'integer', 'double'}:
@@ -226,6 +236,16 @@ def stream_confidence(path, root=None, *, build_pae=False, axis_kind='unknown', 
                         vector.append(number)
                     else:
                         vector_overflow = True
+                if local in {'chain_ptm.item', 'chain_iptm.item'} and local.split('.')[0] in active_vectors:
+                    number = _number(value)
+                    if number is None or not 0 <= number <= 1:
+                        raise ValueError('Chain confidence must be numeric and between 0 and 1.')
+                    key = 'chainPtm' if local == 'chain_ptm.item' else 'chainIptm'
+                    values = chain_values.setdefault(key, [])
+                    if len(values) < MAX_CHAINS:
+                        values.append(number)
+                    else:
+                        chain_overflow.add(key)
                 if build_pae and local in {'token_chain_ids.item', 'token_res_ids.item'} and local.split('.')[0] in active_vectors:
                     key = local.split('.')[0]
                     values = axes.setdefault(key, [])
@@ -288,6 +308,11 @@ def stream_confidence(path, root=None, *, build_pae=False, axis_kind='unknown', 
             result.setdefault('warnings', []).append('Confidence pLDDT vector exceeds its display limit; structure pLDDT and raw JSON remain available.')
         elif vector:
             result['plddt'] = vector
+        for key in chain_overflow:
+            result.setdefault('warnings', []).append('Chain confidence vectors exceed the 64-chain display limit; raw JSON remains downloadable.')
+        for key, values in chain_values.items():
+            if values:
+                result[key] = values
         if build_pae and matrix_done:
             flush()
             target.flush()

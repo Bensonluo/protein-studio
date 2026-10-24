@@ -8,7 +8,7 @@ import tracemalloc
 import unittest
 from unittest.mock import patch
 
-from backend import engine, result_artifacts as artifacts
+from backend import engine, parsers, result_artifacts as artifacts
 
 
 class ResultArtifactsTests(unittest.TestCase):
@@ -58,6 +58,25 @@ class ResultArtifactsTests(unittest.TestCase):
         self.assertFalse((self.root / '.result-artifacts').exists())
         result = artifacts.stream_confidence(source, self.root, build_pae=True, axis_kind='residue')
         self.assertEqual(result['pae'], [[0, 2], [5, 0]])
+
+    def test_chain_confidence_vectors_follow_af3_semantics(self):
+        source = self.source({'ptm': .8, 'chain_ptm': [.82, .55], 'chain_iptm': [.71, .48]})
+        result = artifacts.stream_confidence(source, self.root)
+        self.assertEqual(result['chainPtm'], [.82, .55])
+        self.assertEqual(result['chainIptm'], [.71, .48])
+        trimmed = artifacts.stream_confidence(self.source({'chain_ptm': [.5] * 100}), self.root)
+        self.assertEqual(len(trimmed['chainPtm']), 64)
+        self.assertTrue(any('64-chain' in warning for warning in trimmed['warnings']))
+        duplicate = self.root / 'duplicate-chains.json'
+        duplicate.write_text('{"chain_ptm": [.5], "ptm": 0.9, "chain_ptm": [.6]}', encoding='utf-8')
+        for bad in (self.source({'chain_ptm': [.5, 1.5]}),
+                    self.source({'chain_iptm': [.5, 'x']}), duplicate):
+            with self.assertRaises(ValueError):
+                artifacts.stream_confidence(bad, self.root)
+        parsed = parsers.parse_confidence(self.source({'chain_ptm': [.9, .4], 'chain_iptm': [.7, .3]}))
+        self.assertEqual(parsed['chainPtm'], [.9, .4])
+        self.assertEqual(parsed['chainIptm'], [.7, .3])
+        self.assertNotIn('chainPtm', parsers.parse_confidence(self.source({'chain_ptm': [.9, 1.4]})))
 
     def test_invalid_matrices_never_publish_or_invent_values(self):
         bad = [[], [[0, 1]], [[0], [2, 0]], [[0, None], [1, 0]], [[0, True], [1, 0]],
