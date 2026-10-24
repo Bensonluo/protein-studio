@@ -27,3 +27,7 @@
 
 /* Keep recovery history inspectable without stretching the dashboard. */
 .cluster-events{max-height:440px;overflow:auto;overscroll-behavior:contain}
+.model-select{max-width:260px;font-size:10px;flex:0 1 auto}
+.model-scope-note{font-size:9px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.model-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.current-model-row td{background:rgba(36,120,106,.08)}

@@ -7,18 +7,21 @@ const source=fs.readFileSync(path.join(__dirname,'../web/app.js'),'utf8');
 const start=source.indexOf('function residueConfidenceColorer(');
 const end=source.indexOf('function selectAtom(',start);
 assert.ok(start>=0&&end>start,'Viewer coloring functions must be present');
-let residues=[],styles=[],surfaces=[],renderCount=0;
+let residues=[],styles=[],surfaces=[],renderCount=0,modelAtoms=[];
 const context={
-  state:{style:'cartoon',color:'confidence',viewer:{
+  state:{style:'cartoon',color:'confidence',modelIndex:0,modelJobId:'job-x',job:{id:'job-x',result:{}},viewer:{
     removeAllSurfaces(){},setStyle(selection,style){styles.push(style);},
-    addSurface(type,style){surfaces.push(style);},render(){renderCount++;}
+    addSurface(type,style){surfaces.push(style);},render(){renderCount++;},
+    getModel:()=>({selectedAtoms:()=>modelAtoms})
   }},
   getResidues:()=>residues,
   getPlddt:()=>residues.map(r=>r.plddt).filter(Number.isFinite),
+  encodeURIComponent,
   window:{$3Dmol:{SurfaceType:{VDW:1}}}
 };
 vm.createContext(context);
-vm.runInContext(source.match(/function confidenceColor\(value\) \{[^\n]+\}/)[0]+'\n'+source.slice(start,end),context);
+const helpers=source.slice(source.indexOf('function viewerModels('),source.indexOf('function renderViewerTabline('));
+vm.runInContext(source.match(/function confidenceColor\(value\) \{[^\n]+\}/)[0]+'\n'+helpers+source.slice(start,end),context);
 const checks=[];
 function colors(style='cartoon'){
   styles=[];surfaces=[];context.state.style=style;context.applyViewerStyle();
@@ -59,4 +62,21 @@ assert.equal(color({chain:'A',resi:2,b:95}),'#9edac6');
 context.state.color='spectrum';colors();assert.equal(styles.at(-1).cartoon.color,'spectrum');
 checks.push('Explicit chain and spectrum coloring retain their previous semantics');
 assert.equal(renderCount,7);
+context.state.job={id:'job-x',result:{rankedModels:[{},{}]}};
+context.state.modelIndex=1;
+modelAtoms=[{chain:'A',b:92},{chain:'A',b:35},{chain:'A',b:64},{chain:'A',b:0}];
+const bColorer=context.bFactorConfidenceColorer();
+assert.equal(typeof bColorer,'function');
+assert.equal(bColorer({chain:'A',b:92}),'#65a5e8');
+assert.equal(bColorer({chain:'A',b:35}),'#e59263');
+assert.equal(bColorer({chain:'A',b:64}),'#e7ce68');
+assert.equal(bColorer({chain:'A',b:0}),'#8e9ca6');
+checks.push('A non-primary ranked model colors per-residue pLDDT from the structure file B-factor column in the shared four-band palette');
+modelAtoms=[{chain:'A',b:0},{chain:'A',b:0},{chain:'A',b:1e9}];
+assert.equal(context.bFactorConfidenceColorer(),null);
+residues=[{chain:'A',residueNumber:1,insertionCode:'',plddt:95}];
+styles=[];context.state.color='confidence';context.applyViewerStyle();
+assert.equal(styles.at(-1).cartoon.colorfunc({chain:'A',b:92}),'#9edac6');
+checks.push('Files whose B-factor column carries no usable pLDDT fall back to chain coloring instead of inventing confidence');
+context.state.modelIndex=0;modelAtoms=[];
 console.log(JSON.stringify({status:'passed',count:checks.length,checks,scope:'Production coloring functions evaluated against a minimal 3Dmol viewer API fixture; no WebGL/native model claim.'},null,2));

@@ -192,3 +192,14 @@
 4. [完成] 修复迭代 #1 HTTP 测试竞态：CampaignScoreHTTPTests 曾 app.start() 启动真实管线 worker，与手工 store.claim 竞争领取（两次在负载下现形为 claim→None）；该类只走 GET 路由，去掉 start() 根治，套件重跑全绿。
 
 本轮：分数浏览器契约 12/12（+1 概览）、browser_campaign 回归 9/9、根 tests 67/67、客户端通过、全后端 323 发现 OK（1 按需 skip，修复后复跑 74.0s；中途一轮 1 error 为上述测试竞态，已根治并复验）。概览为账本聚合轮询数据。演示服务用后即停。另：应用户要求，此前公开演示与置信度工作已按功能分两个英文 commit（ccef98c、bc9b49f）入库。
+
+## 2026-10-24 持续迭代：排名模型切换（三维视图）
+
+置信度筛查线（迭代 #1–#6）已闭环，本轮转向三维视图。依据两源：AlphaFold Server / EMBL 培训（每任务 5 个采样，结果页默认展示排名最高样本，全部采样与各自数据可查看、按 ranking_score 排名）；ColabFold 官方仓库与 AlphaFold2 notebook（ranked_0..4 按 pLDDT/pTM 排名，结构文件 B 因子列即逐残基 pLDDT，每个模型有独立置信度曲线）。检查发现后端已全程携带 rankedModels（rank/name/structureUrl/meanPlddt/ptm/iptm/rankingScore，artifact URL 已注册），但三维视图永远只加载主结构——采样"可下载不可查看"的断点。
+
+1. [完成] viewer-tabline 排名选择器：≥2 采样时列出 排名·样本名·pLDDT·排名分，默认排名 1；切换经 renderMain 复用既有 viewer teardown 干净重建；下载链接跟随当前采样；scope 注明置信度曲线/PAE 仍对应排名 1 主结果。
+2. [完成] 非主排名按结构文件 B 因子（即 pLDDT，AF2/ColabFold 约定）以共享四带色板逐残基着色；文件无可用 B 因子（全 0/缺失）回退按链着色，不虚构置信度。
+3. [完成] 模型与结果制品表新增"排名分"列（AF3 Server 逐采样展示 ranking score 的惯例）与逐行"三维查看/当前视图"动作；modelIndex 按任务 id 重置，跨任务不残留。
+4. [完成] 测试：新增 browser_ranked_models.cjs 契约（模拟多采样 AF3 任务 + 单模型参考任务，6 项：选择器标签与默认值、切换重载几何与下载链接、表格动作切回、单模型无选择器、跨任务重置）；置信度着色 vm 回归 +2（B 因子四带着色、全 0 回退按链）。后端零改动（结构 URL 与分数均已存在）。
+
+本轮：语法检查 8 文件、排名模型契约 6/6、着色 vm 6/6、workspace-ux 离线 5 套件、隔离 8973 分数契约 12/12、批次回归 9/9、冒烟 12 检查（8974，需 CHROME_PATH 指向完整 Chrome，headless-shell 未安装）、根 tests OK、客户端通过、全后端 323 OK（1 按需 skip，72.9s）。workspace_ux_live 本轮未跑：其设计目标是常驻主服务（workers 模式 + 已有完成示例），隔离冷起服务不满足前置（自动种子在无 reference worker 时无法完成），历史绿记录对未改动面仍有效，改动面已由冒烟与离线套件覆盖。模拟 API 契约验证 UI 行为，非新预测或 GPU 性能声明。演示服务用后即停。下一轮候选：PAE 按采样快照、跨采样分数对比视图。

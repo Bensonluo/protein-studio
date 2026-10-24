@@ -87,3 +87,9 @@
 同时根治迭代 #1 遗留的测试竞态：CampaignScoreHTTPTests 的 app.start() 会启动真实管线 worker 与手工 claim 竞争（负载下两次现形 claim→None TypeError）；该测试类仅走 GET 路由，移除 start() 后确定性消除，全后端复跑 323 OK。
 
 验收：分数浏览器契约 12/12、browser_campaign 回归 9/9、根 tests 67/67、campaign_client 通过、全后端 323 发现 OK（1 按需 skip，73.998s 复跑）。另应用户要求将公开演示（ccef98c）与置信度筛选（bc9b49f）分两个英文 commit 提交。演示服务 8973 验收后停止；主服务未动，无部署。
+
+## 2026-10-24 排名模型切换迭代
+
+按 AF3 Server（结果页默认展示最高排名采样、全部采样可查看、ranking_score 排名）与 ColabFold（ranked_0..4、B 因子列即 pLDDT）两源惯例为三维视图补齐采样切换：≥2 采样时 tabline 出现排名选择器（排名/样本名/pLDDT/排名分），默认排名 1；模型表新增排名分列与"三维查看"动作；非主排名按文件 B 因子四带着色、无可用 B 因子回退按链；下载链接与查看状态跟随当前采样；切换任务自动重置。后端零改动（rankedModels 与 artifact URL 均已存在）。
+
+验收：语法 8 文件、排名模型契约 6/6、着色 vm 6/6（+2 B 因子用例）、workspace-ux 离线 5 套件、隔离 8973 分数契约 12/12、批次回归 9/9、冒烟 12 检查（8974 隔离服务）、根 tests OK、campaign_client 通过、全后端 323 OK（1 按需 skip）。两处环境坑已定位非产品缺陷：冒烟需 CHROME_PATH（Playwright headless-shell 二进制未安装）；workspace_ux_live 前置是常驻主服务，本轮主服务未运行故未复跑，历史绿记录对未改动面有效。模拟 API 契约验证 UI 行为，非新预测或 GPU 性能声明。演示服务用后即停；主服务未动，无部署。
