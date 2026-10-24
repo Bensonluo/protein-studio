@@ -73,9 +73,18 @@ const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.
   assert.ok(await modelTable.locator('tr').nth(0).locator('[data-view-model][disabled]').count()===1);
   assert.ok(await modelTable.locator('tr').nth(1).locator('[data-view-model]:not([disabled])').count()===1);
   checks.push('Models table shows the per-sample ranking score and marks the model currently in the viewer');
+  const compare=page.locator('.score-compare');
+  assert.equal(await compare.locator('.score-bar-row').count(),2);
+  assert.match(await compare.locator('.score-compare-title').textContent(),/排名分对比/);
+  assert.match(await compare.locator('.score-compare-title').textContent(),/首名领先 0\.232/);
+  assert.equal((await compare.locator('.score-bar-row.current .score-bar-value').textContent()).trim(),'0.842');
+  const widths=await compare.locator('.score-bar').evaluateAll(bars=>bars.map(b=>parseFloat(b.style.width)));
+  assert.ok(widths[0]>widths[1]);
+  checks.push('Per-sample ranking scores compared in one bar view with the viewed sample emphasized (ColabFold ranking-plot convention)');
   await page.selectOption('#model-select','1');
   await page.waitForFunction(()=>state.viewer?.getModel()?.selectedAtoms?.({})?.length===10,null,{timeout:15000});
   assert.equal(await page.locator('#model-select').inputValue(),'1');
+  assert.match(await compare.locator('.score-bar-row.current .score-bar-label').textContent(),/排名 2/);
   assert.match(await page.locator('.model-scope-note').textContent(),/正在查看其他排名/);
   await page.waitForFunction(()=>document.querySelector('.analysis-panel:not(.pae-panel)')?.textContent.includes('57.2'),null,{timeout:8000});
   assert.match(await page.locator('.analysis-panel:not(.pae-panel)').textContent(),/B 因子/);
@@ -123,6 +132,7 @@ const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.
   assert.equal(await page.locator('#model-select').count(),0);
   assert.equal(await page.locator('[data-view-model]').count(),0);
   assert.equal(await page.locator('a[href*="/archive"]').count(),0);
+  assert.equal(await page.locator('.score-compare').count(),0);
   checks.push('Single-model reference jobs keep the plain viewer without a picker or per-row view actions');
   await page.locator('[data-view="jobs"]').click();
   await page.locator('[data-job-id="job-m"] .row-action').click();
