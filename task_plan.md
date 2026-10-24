@@ -406,3 +406,14 @@
 
 验证计划：同 #23 十层链。
 验证结果：pae_lazy 19/19 首跑即绿；十层链 t1–t10 全绿（全量后端 331 OK / 1 skip / 72.4s）；手动 diff-scoped SEC-GREP CLEAN。诚实记录：本轮零红跑；主要价值点是自审发现并修正 #22 的双色映射反转（所引论文原文 x=打分段=青、y=对齐段=橙，实现曾相反），修正覆盖 app.js/pae_lazy 断言/README 三处。
+
+## 2026-10-25 持续迭代：AFM-LIS 本地界面度量
+
+#24 后把界面置信度从「全局对分」推进到「局部残基对置信」。依据六源：LIVIA About（iLIS=√(LIS×cLIS)、conf=1−PAE/12、双向平均、LIA 双向计数、iLIS≥0.223=10% FPR Y2H 基准）；flyark/AFM-LIS 源码（transform_pae_matrix/calculate_mean_lis 正格均值、空方向计 0）；Kim & Perrimon 2026 bioRxiv（几何平均消除「高置信远距」假阳性类）；af-analysis readthedocs 独立实现（LIS_matrix pae_cutoff=12）；Kim 2024 PMC12191236（PAE=12 为 ROC 最大 AUC cutoff）；LIVIA Prediction Analysis（FPR 分带 ≥0.551/0.339/0.223）。设计决策：LIS 家族并入 interface_contacts 单遍历内核（8Å close_pairs 已有，两调用点自动获益）；距离 Cα≤8Å 代原文 Cβ≤8Å（单 CA 存储，README/tooltip 如实标注）；conf=0 格（PAE=12）不计入均值（AFM-LIS block>0 语义）；无合格格的链对不列（不产 0 噪声）；actifpTM 候选明确排除（正牌需 distogram，AF3 无；LIVIA 仅 PAE 近似且自标偏高——不实现近似口径的论文度量）。
+
+1. [完成] 内核 parsers.interface_contacts：行遍历内逐跨链格累积 conf（方向分桶 sum/count + 接触格 close_pairs 双向成员判断），scores 输出 {a,b,lis,clis,ilis,lia,clia,ilia,ilisa}（lis/clis/ilis round4、ilia round1、ilisa round2）；attach_interface_contacts 与 server 导入路径落 result['interfaceScores']（非空才落）；store.list() 剥离 $.result.interfaceScores。
+2. [完成] 前端 web/app.js：iscores 过滤 + ilisOf/ilisBand（0.551/0.339/0.223 FPR 带）；chips 追加 iLIS span（复用 ipsae-band 四档配色语言）+ tooltip 增 iLIS 全口径说明。
+3. [完成] 测试：test_result_artifacts 新增 test_interface_scores_follow_afm_lis_convention（5×5 手算 fixture：LIS 0.6806/cLIS 0.75/iLIS 0.7144/LIA 6/cLIA 2/iLIA 3.5/iLISA 2.47；远距 case iLIS 归零；全 30 Å 无格不列；None 跳过 lia=3）+ attach 正例（0.75 全等 case）+ 负例断言 interfaceScores 缺席 + #20 旧精确形状断言随增量 scores 键更新；test_api dimer（LIS 0.7917/8 格、9/10Å>8 → iLIS 诚实归 0）+ StorageTests 剥离数组；browser_ranked_models fixture interfaceScores + chip iLIS 0.81/high 断言（19→20 项）；README 功能句 + iLIS chips 计数同步。
+
+验证计划：同 #24 十层链。
+验证结果：内核冒烟对拍手算时自捕反向接触格漏查 bug（close_pairs 有序对成员判断需双向查）并修复；修复后手算全对齐。后端 40/40；browser_ranked_models 20/20 首跑即绿；十层链 t1–t10 全绿（全量后端 332 OK/1 skip/70.8s）；手动 diff-scoped SEC-GREP CLEAN。

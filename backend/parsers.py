@@ -228,6 +228,7 @@ CONTACT_CA_DISTANCE = 15.0
 CONTACT_MAX_RANGES = 512
 CONTACT_LINE_DISTANCE = 8.0
 CONTACT_MAX_LINES = 2048
+LIS_PAE_CUTOFF = 12.0
 
 
 def _index_ranges(indices):
@@ -258,7 +259,21 @@ def interface_contacts(rows, residues, lines=False):
     contact criterion), PAE-colored per pair like that tool's display and not
     filtered by any PAE cutoff. Pairs whose PAE cells are missing or
     non-finite cannot be colored and are skipped rather than guessed; the list
-    is capped at CONTACT_MAX_LINES with 'linesTruncated': True."""
+    is capped at CONTACT_MAX_LINES with 'linesTruncated': True.
+
+    Also returns 'scores': the AFM-LIS / LIVIA local interface metrics per
+    unordered chain pair (Kim et al. 2024; Kim & Perrimon 2026). Each cell's
+    confidence is 1 - PAE/12 (the ROC-optimized cutoff), zero or above the
+    cutoff cells are excluded; LIS is the mean confidence per direction
+    averaged over the two directions (PAE is not symmetrized), cLIS restricts
+    to the cells of pairs also within CONTACT_LINE_DISTANCE, and iLIS =
+    sqrt(LIS * cLIS), so a confidently predicted but physically distant pair
+    scores 0 - the geometric mean eliminates that false-positive class. LIA /
+    cLIA count contributing cells (both directions, a pair confident both ways
+    counts twice), iLIA = sqrt(LIA * cLIA) and iLISA = iLIS * iLIA. The
+    contact distance is C-alpha here (one CA per residue) where LIVIA uses
+    C-beta <= 8 A. Only chain pairs with at least one confident cell are
+    listed."""
     size = len(residues)
     limit = CONTACT_CA_DISTANCE * CONTACT_CA_DISTANCE
     line_limit = CONTACT_LINE_DISTANCE * CONTACT_LINE_DISTANCE
@@ -287,11 +302,31 @@ def interface_contacts(rows, residues, lines=False):
                             partners[position].append(other)
                             partners[other].append(position)
     directed = {}
+    lis = {}
     for row_index, row in enumerate(rows):
+        row_chain = residues[row_index]['chain']
         for column in partners[row_index]:
             value = row[column]
             if isinstance(value, (int, float)) and math.isfinite(value):
                 directed[(row_index, column)] = value
+        for column, residue in enumerate(residues):
+            other_chain = residue['chain']
+            if other_chain == row_chain:
+                continue
+            value = row[column]
+            if not isinstance(value, (int, float)) or not math.isfinite(value) \
+                    or value >= LIS_PAE_CUTOFF:
+                continue
+            confidence = 1.0 - value / LIS_PAE_CUTOFF
+            key = (row_chain, other_chain) if row_chain < other_chain else (other_chain, row_chain)
+            entry = lis.setdefault(key, {'sum': [0.0, 0.0], 'count': [0, 0],
+                                         'contact_sum': [0.0, 0.0], 'contact_count': [0, 0]})
+            forward = 0 if row_chain == key[0] else 1
+            entry['sum'][forward] += confidence
+            entry['count'][forward] += 1
+            if (row_index, column) in close_pairs or (column, row_index) in close_pairs:
+                entry['contact_sum'][forward] += confidence
+                entry['contact_count'][forward] += 1
     grouped = {}
     for (row_index, column), value in directed.items():
         if row_index > column:
@@ -313,7 +348,23 @@ def interface_contacts(rows, residues, lines=False):
             runs_a, runs_b = runs_a[:CONTACT_MAX_RANGES], runs_b[:CONTACT_MAX_RANGES]
         summary.append({'a': first, 'b': second, 'pairs': entry['pairs'],
                         'resA': runs_a, 'resB': runs_b})
-    result = {'contacts': summary, 'truncated': truncated}
+    score_rows = []
+    for (first, second), entry in sorted(lis.items()):
+        directions = [entry['sum'][side] / entry['count'][side] if entry['count'][side] else 0.0
+                      for side in (0, 1)]
+        contact_directions = [entry['contact_sum'][side] / entry['contact_count'][side]
+                              if entry['contact_count'][side] else 0.0 for side in (0, 1)]
+        lis_value = (directions[0] + directions[1]) / 2.0
+        clis_value = (contact_directions[0] + contact_directions[1]) / 2.0
+        ilis_value = math.sqrt(lis_value * clis_value)
+        lia = entry['count'][0] + entry['count'][1]
+        clia = entry['contact_count'][0] + entry['contact_count'][1]
+        ilia_value = math.sqrt(lia * clia)
+        score_rows.append({'a': first, 'b': second, 'lis': round(lis_value, 4),
+                           'clis': round(clis_value, 4), 'ilis': round(ilis_value, 4),
+                           'lia': lia, 'clia': clia, 'ilia': round(ilia_value, 1),
+                           'ilisa': round(ilis_value * ilia_value, 2)})
+    result = {'contacts': summary, 'scores': score_rows, 'truncated': truncated}
     if lines:
         line_records = []
         lines_truncated = False

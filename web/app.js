@@ -127,14 +127,19 @@ function renderChainConfidence(job,result) {
   const ipsae=Array.isArray(result?.ipSae)?result.ipSae.filter(p=>p&&typeof p.a==='string'&&typeof p.b==='string'&&Number.isFinite(p.value)):[];
   const ipsaeOf=(a,b)=>ipsae.find(p=>(p.a===a&&p.b===b)||(p.a===b&&p.b===a));
   const ipsaeBand=v=>v>=0.8?'high':v>=0.7?'mid':v>=0.6?'low':'poor';
+  // iLIS (AFM-LIS / LIVIA, Kim & Perrimon 2026): local interface confidence
+  // over confident cells only, contact-filtered; FPR-banded like LIVIA.
+  const iscores=Array.isArray(result?.interfaceScores)?result.interfaceScores.filter(p=>p&&typeof p.a==='string'&&typeof p.b==='string'&&Number.isFinite(p.lis)&&Number.isFinite(p.clis)&&Number.isFinite(p.ilis)):[];
+  const ilisOf=(a,b)=>iscores.find(p=>(p.a===a&&p.b===b)||(p.a===b&&p.b===a));
+  const ilisBand=v=>v>=0.551?'high':v>=0.339?'mid':v>=0.223?'low':'poor';
   const contacts=Array.isArray(result?.interfaceContacts)?result.interfaceContacts.filter(p=>p&&typeof p.a==='string'&&typeof p.b==='string'&&Number.isFinite(p.pairs)&&Array.isArray(p.resA)&&Array.isArray(p.resB)):[];
   const hasTable=chains.length>=2&&(Array.isArray(ptm)||Array.isArray(iptm));
   if(!hasTable&&!iface.length&&!contacts.length)return '';
   const rows=hasTable?chains.map((c,i)=>{const p=ptm?.[i],t=iptm?.[i],band=typeof campaignScoreBand==='function'?campaignScoreBand(t):null;
     return `<tr><td class="mono">${escapeHTML(c.id||String.fromCharCode(65+i))}</td><td>${Number.isFinite(p)?p.toFixed(2):'—'}</td><td>${band?`<span class="campaign-score-band ${band}">ipTM ${t.toFixed(2)}</span>`:Number.isFinite(t)?t.toFixed(2):'—'}</td></tr>`;}).join(''):'';
   const table=hasTable?`<div class="table-scroll"><table><thead><tr><th>链</th><th>pTM</th><th>平均界面 ipTM</th></tr></thead><tbody>${rows}</tbody></table></div>`:'';
-  const chips=iface.length?`<div class="pae-interface-chips">${iface.map(pair=>{const score=ipsaeOf(pair.a,pair.b);
-    return `<span class="pae-interface-chip" title="⟨PAE⟩_int：链对间残基对的 PAE 双向块均值（Zhu et al. 2023 口径）；PAE 非对称，均值已抹平方向差异，具体方向以 PAE 矩阵为准${score?`；ipSAE：仅统计 PAE&lt;10 Å 残基对的 TM 式得分、取两方向最大（Dunbrack 2025 口径，AlphaFold DB 采用）；解读分带 ≥0.8 很高 / ≥0.7 较可信 / ≥0.6 谨慎 / &lt;0.6 不可靠（AFDB）`:''}">${escapeHTML(pair.a)}↔${escapeHTML(pair.b)} 界面 PAE ${pair.mean.toFixed(1)} Å${score?` · <span class="ipsae-band ipsae-${ipsaeBand(score.value)}">ipSAE ${score.value.toFixed(2)}</span>`:''}</span>`;}).join('')}</div>`:'';
+  const chips=iface.length?`<div class="pae-interface-chips">${iface.map(pair=>{const score=ipsaeOf(pair.a,pair.b),lscore=ilisOf(pair.a,pair.b);
+    return `<span class="pae-interface-chip" title="⟨PAE⟩_int：链对间残基对的 PAE 双向块均值（Zhu et al. 2023 口径）；PAE 非对称，均值已抹平方向差异，具体方向以 PAE 矩阵为准${score?`；ipSAE：仅统计 PAE&lt;10 Å 残基对的 TM 式得分、取两方向最大（Dunbrack 2025 口径，AlphaFold DB 采用）；解读分带 ≥0.8 很高 / ≥0.7 较可信 / ≥0.6 谨慎 / &lt;0.6 不可靠（AFDB）`:''}${lscore?`；iLIS：conf=1−PAE/12 仅对 PAE&lt;12 Å 格取均值、双向平均，cLIS 再限 Cα≤8 Å 接触格，iLIS=√(LIS×cLIS)（AFM-LIS/LIVIA 口径，Kim &amp; Perrimon 2026；无接触即 0）；分带 ≥0.551/0.339/0.223 = 1%/5%/10% FPR（Y2H 基准）`:''}">${escapeHTML(pair.a)}↔${escapeHTML(pair.b)} 界面 PAE ${pair.mean.toFixed(1)} Å${score?` · <span class="ipsae-band ipsae-${ipsaeBand(score.value)}">ipSAE ${score.value.toFixed(2)}</span>`:''}${lscore?` · <span class="ipsae-band ipsae-${ilisBand(lscore.ilis)}">iLIS ${lscore.ilis.toFixed(2)}</span>`:''}</span>`;}).join('')}</div>`:'';
   const fmtRanges=r=>r.filter(x=>Array.isArray(x)&&x.length===2&&Number.isInteger(x[0])&&Number.isInteger(x[1])).map(x=>x[0]===x[1]?`${x[0]+1}`:`${x[0]+1}–${x[1]+1}`).join(', ');
   const contactList=contacts.length?`<div class="pae-interface-contacts">${contacts.map(p=>`<div class="pae-contact-row" title="高置信界面接触对：PAE&lt;10 Å 且 Cα&lt;15 Å（两方向取较低 PAE，AFDB ipSAE 对口径）；残基号为 1 起的结构序号（ChimeraX alphafold interfaces 亦按参与残基汇报）">${escapeHTML(p.a)}↔${escapeHTML(p.b)}：高置信接触 ${p.pairs} 对 · ${escapeHTML(p.a)} 残基 ${escapeHTML(fmtRanges(p.resA))} · ${escapeHTML(p.b)} 残基 ${escapeHTML(fmtRanges(p.resB))}</div>`).join('')}</div>`:'';
   return `<section class="panel analysis-panel chain-conf-panel"><div class="panel-heading"><h3>${icon('shield')}链间界面置信度</h3><span class="subtle">CHAIN CONFIDENCE</span></div>${table}${chips}${contactList}<div class="analysis-title-note">逐链 pTM 与平均界面 ipTM · 均值为 AF3 chain_iptm 口径，非对称界面建议结合 PAE 判断</div></section>`;

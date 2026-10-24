@@ -566,6 +566,8 @@ def attach_interface_contacts(result, descriptor, root):
                                  result['residues'], lines=True)
     if summary['contacts']:
         result['interfaceContacts'] = summary['contacts']
+    if summary.get('scores'):
+        result['interfaceScores'] = summary['scores']
     if summary.get('lines'):
         result['interfaceLines'] = summary['lines']
     if summary.get('linesTruncated'):

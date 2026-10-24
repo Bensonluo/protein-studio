@@ -22,7 +22,7 @@ const detail={
       {rank:1,name:'sample-0',structureUrl:'/api/jobs/job-m/artifact?name=sample-0.pdb',structureFormat:'pdb',meanPlddt:88.1,ptm:0.8,iptm:0.85,rankingScore:0.842},
       {rank:2,name:'sample-1',structureUrl:'/api/jobs/job-m/artifact?name=sample-1.pdb',structureFormat:'pdb',meanPlddt:71.4,ptm:0.6,iptm:0.62,rankingScore:0.610},
     ],artifacts:[{name:'scores.json',url:'/api/jobs/job-m/artifact?name=scores.json',size:2048}]}},
-  'job-r':{...jobs.find(j=>j.id==='job-r'),result:{structureUrl:'/api/jobs/job-r/structure',structureFormat:'pdb',sequenceLength:6,meanPlddt:80.2,chainPtm:[0.82,0.55],chainIptm:[0.71,0.48],interfacePae:[{a:'A',b:'B',mean:3.2}],ipSae:[{a:'A',b:'B',value:0.85}],interfaceContacts:[{a:'A',b:'B',pairs:23,resA:[[11,44],[97,109]],resB:[[4,29]]}],interfaceLines:[{i:4,j:5,pae:6.5},{i:3,j:5,pae:13}],plddt:[],residues:[...Array(6)].map((_,i)=>({aa:'A',chain:'A',residueNumber:i+1})).concat([...Array(4)].map((_,i)=>({aa:'A',chain:'B',residueNumber:i+1}))),provenance:{mode:'reference'},
+  'job-r':{...jobs.find(j=>j.id==='job-r'),result:{structureUrl:'/api/jobs/job-r/structure',structureFormat:'pdb',sequenceLength:6,meanPlddt:80.2,chainPtm:[0.82,0.55],chainIptm:[0.71,0.48],interfacePae:[{a:'A',b:'B',mean:3.2}],ipSae:[{a:'A',b:'B',value:0.85}],interfaceScores:[{a:'A',b:'B',lis:0.83,clis:0.79,ilis:0.81,lia:24,clia:18,ilia:20.78,ilisa:16.85}],interfaceContacts:[{a:'A',b:'B',pairs:23,resA:[[11,44],[97,109]],resB:[[4,29]]}],interfaceLines:[{i:4,j:5,pae:6.5},{i:3,j:5,pae:13}],plddt:[],residues:[...Array(6)].map((_,i)=>({aa:'A',chain:'A',residueNumber:i+1})).concat([...Array(4)].map((_,i)=>({aa:'A',chain:'B',residueNumber:i+1}))),provenance:{mode:'reference'},
     rankedModels:[{rank:1,name:'Polyubiquitin-B',structureUrl:'/api/jobs/job-r/artifact?name=afdb.pdb',structureFormat:'pdb',meanPlddt:80.2}],artifacts:[]}},
 };
 const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.stringify(data)});
@@ -164,7 +164,8 @@ const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.
   assert.equal(await chainConf.locator('.pae-interface-chip').count(),1);
   assert.match(await chainConf.locator('.pae-interface-chip').textContent(),/A↔B 界面 PAE 3\.2 Å/);
   assert.match(await chainConf.locator('.pae-interface-chip').textContent(),/ipSAE 0\.85/);
-  assert.equal(await chainConf.locator('.ipsae-band.ipsae-high').count(),1);
+  assert.match(await chainConf.locator('.pae-interface-chip').textContent(),/iLIS 0\.81/);
+  assert.equal(await chainConf.locator('.ipsae-band.ipsae-high').count(),2);
   assert.equal(await chainConf.locator('.pae-contact-row').count(),1);
   const contactText=await chainConf.locator('.pae-contact-row').textContent();
   assert.match(contactText,/A↔B：高置信接触 23 对/);
@@ -191,6 +192,7 @@ const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.
   checks.push('Per-chain pTM and average interface ipTM render for multichain jobs, banded by the ipTM thresholds (AF3 Server convention)');
   checks.push('Interface PAE means per chain pair shown as chips (⟨PAE⟩_int, Zhu et al. 2023 convention, both directed blocks averaged)');
   checks.push('Interface chips append ipSAE per chain pair (Dunbrack 2025 convention, max of both directions) colored by AFDB interpretation bands (>=0.8/0.7/0.6)');
+  checks.push('Interface chips append iLIS per chain pair (AFM-LIS/LIVIA: conf=1-PAE/12 bidirectional mean, cLIS contact-filtered, iLIS=sqrt(LIS*cLIS)) colored by the 0.551/0.339/0.223 FPR bands (Kim & Perrimon 2026)');
   checks.push('Confident interface contact rows list per-chain participating residue ranges (AFDB PAE<10A + CA<15A pair convention, ChimeraX-style participating-residue reporting)');
   checks.push('Interface residue toggle highlights backend-computed confident-contact residues as accent sticks on the primary model only (PyMOL byres-within convention); absent on sample views and contact-less jobs');
   checks.push('Contact-lines toggle draws PAE-colored cylinders between 8 A cross-chain pairs (ChimeraX alphafold contacts convention, 0/5/10/15/20 A bands) on the primary model only and clears them on toggle-off');

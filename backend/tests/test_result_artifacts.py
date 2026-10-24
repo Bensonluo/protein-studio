@@ -131,8 +131,13 @@ class ResultArtifactsTests(unittest.TestCase):
                     {'chain': 'B', 'x': 10.0, 'y': 0.0, 'z': 0.0},
                     {'chain': 'B', 'x': 40.0, 'y': 0.0, 'z': 0.0}]
         close = parsers.interface_contacts([[0, 0, 5, 0], [0, 0, 5, 0], [5, 5, 0, 0], [0, 0, 0, 0]], residues)
+        # The 9/10 A geometry carries no 8 A contact pair, so the AFM-LIS
+        # scores list LIS over every confident cell but zero cLIS/iLIS.
         self.assertEqual(close, {'contacts': [{'a': 'A', 'b': 'B', 'pairs': 2,
-                                               'resA': [[0, 1]], 'resB': [[2, 2]]}], 'truncated': False})
+                                               'resA': [[0, 1]], 'resB': [[2, 2]]}],
+                                 'scores': [{'a': 'A', 'b': 'B', 'lis': 0.7917, 'clis': 0.0,
+                                             'ilis': 0.0, 'lia': 8, 'clia': 0,
+                                             'ilia': 0.0, 'ilisa': 0.0}], 'truncated': False})
         # The pair qualifies on the lower directed PAE only: 3 vs 12.
         directed = parsers.interface_contacts([[0, 0, 3, 0], [0, 0, 12, 0], [12, 12, 0, 0], [0, 0, 0, 0]], residues)
         self.assertEqual(directed['contacts'], [{'a': 'A', 'b': 'B', 'pairs': 1,
@@ -191,10 +196,49 @@ class ResultArtifactsTests(unittest.TestCase):
         packed = parsers.interface_contacts(rows, crowded, lines=True)
         self.assertEqual(len(packed['lines']), 2048)
         self.assertTrue(packed['linesTruncated'])
-        # The default call keeps the pre-lines contract shape.
+        # The default call keeps the pre-lines contract shape; the AFM-LIS
+        # scores are additive and always present.
         legacy = parsers.interface_contacts(matrix, residues)
         self.assertNotIn('lines', legacy)
         self.assertNotIn('linesTruncated', legacy)
+        self.assertIn('scores', legacy)
+
+    def test_interface_scores_follow_afm_lis_convention(self):
+        # AFM-LIS / LIVIA (Kim et al. 2024; Kim & Perrimon 2026): confidence
+        # 1 - PAE/12 over cells below the ROC-optimized cutoff, directional
+        # means averaged, contact-filtered cLIS and iLIS = sqrt(LIS * cLIS).
+        residues = [{'chain': 'A', 'x': 0.0, 'y': 0.0, 'z': 0.0},
+                    {'chain': 'A', 'x': 0.0, 'y': 30.0, 'z': 0.0},
+                    {'chain': 'A', 'x': 0.0, 'y': 60.0, 'z': 0.0},
+                    {'chain': 'B', 'x': 5.0, 'y': 0.0, 'z': 0.0},
+                    {'chain': 'B', 'x': 40.0, 'y': 0.0, 'z': 0.0}]
+        matrix = [[1, 1, 1, 4, 16], [1, 1, 1, 8, 20], [1, 1, 1, 12, 0],
+                  [2, 30, 6, 1, 1], [13, 3, 36, 1, 1]]
+        close = parsers.interface_contacts(matrix, residues, lines=True)
+        # Direction A->B confidences 1-4/12, 1-8/12, 1-0/12 (the PAE=12 cell
+        # carries zero confidence and drops out) mean 2/3; B->A 0.8333, 0.5,
+        # 0.75 mean 0.6944; LIS 0.6806 over LIA=6 cells. Only A0-B0 (5 A)
+        # contacts: both directions keep 0.6667 / 0.8333, cLIS 0.75, cLIA 2.
+        self.assertEqual(close['scores'], [{'a': 'A', 'b': 'B', 'lis': 0.6806,
+                                            'clis': 0.75, 'ilis': 0.7144, 'lia': 6,
+                                            'clia': 2, 'ilia': 3.5, 'ilisa': 2.47}])
+        # Same confident PAE block with no pair within 8 A: LIS stays but the
+        # geometric mean forces iLIS to 0 - the false-positive class LIVIA
+        # zeroes out (confident but physically distant).
+        far = [dict(residue) for residue in residues]
+        far[3]['x'], far[4]['x'] = 50.0, 90.0
+        distant = parsers.interface_contacts(matrix, far)
+        self.assertEqual(distant['scores'], [{'a': 'A', 'b': 'B', 'lis': 0.6806,
+                                              'clis': 0.0, 'ilis': 0.0, 'lia': 6,
+                                              'clia': 0, 'ilia': 0.0, 'ilisa': 0.0}])
+        # No cell below the cutoff leaves the pair unlisted rather than 0.
+        self.assertEqual(parsers.interface_contacts([[30.0] * 5 for _ in range(5)],
+                                                    residues)['scores'], [])
+        # Missing PAE cells are skipped, never guessed.
+        sparse = [[None, None, None, 4, None], [None] * 5, [None] * 5,
+                  [2, None, None, 1, 1], [None, 3, None, 1, 1]]
+        skipped = parsers.interface_contacts(sparse, residues)
+        self.assertEqual(skipped['scores'][0]['lia'], 3)
 
     def test_attach_interface_contacts_requires_aligned_residue_axes(self):
         result = artifacts.stream_confidence(
@@ -205,18 +249,25 @@ class ResultArtifactsTests(unittest.TestCase):
         self.assertEqual(payload['interfaceContacts'], [{'a': 'A', 'b': 'B', 'pairs': 1,
                                                          'resA': [[0, 0]], 'resB': [[1, 1]]}])
         self.assertEqual(payload['interfaceLines'], [{'i': 0, 'j': 1, 'pae': 3.0}])
+        # The 7 A geometry is also a contact pair, so cLIS equals LIS and the
+        # AFM-LIS scores ride along the same aligned-join path.
+        self.assertEqual(payload['interfaceScores'], [{'a': 'A', 'b': 'B', 'lis': 0.75,
+                                                       'clis': 0.75, 'ilis': 0.75, 'lia': 2,
+                                                       'clia': 2, 'ilia': 2.0, 'ilisa': 1.5}])
         # Row count differing from residues, or a token-kind axis where a
         # residue can span tokens, never guesses a join.
         for bad in ({'residues': payload['residues'][:1]}, {'residues': payload['residues'] + [None]}):
             artifacts.attach_interface_contacts(dict(bad), result['paeArtifact'], self.root)
             self.assertNotIn('interfaceContacts', bad)
             self.assertNotIn('interfaceLines', bad)
+            self.assertNotIn('interfaceScores', bad)
         token = artifacts.stream_confidence(
             self.source({'pae': [[0, 3], [3, 0]], 'token_chain_ids': ['A', 'B']}), self.root, build_pae=True)
         skipped = {'residues': payload['residues']}
         artifacts.attach_interface_contacts(skipped, token['paeArtifact'], self.root)
         self.assertNotIn('interfaceContacts', skipped)
         self.assertNotIn('interfaceLines', skipped)
+        self.assertNotIn('interfaceScores', skipped)
 
     def test_invalid_matrices_never_publish_or_invent_values(self):
         bad = [[], [[0, 1]], [[0], [2, 0]], [[0, None], [1, 0]], [[0, True], [1, 0]],

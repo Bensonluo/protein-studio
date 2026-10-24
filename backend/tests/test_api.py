@@ -298,6 +298,12 @@ class APITests(unittest.TestCase):
         # 9/10 A contacts (ipSAE pair convention) but exceed the 8 A ChimeraX
         # contact-line distance, so no lines are exported for this geometry.
         self.assertNotIn("interfaceLines", contacts["result"])
+        # AFM-LIS scores ride along: every inter-chain cell is below 12 A
+        # (LIS 0.7917 over 8 cells) but none is within the 8 A contact
+        # filter, so the geometric mean honestly zeroes iLIS.
+        self.assertEqual(contacts["result"]["interfaceScores"],
+                         [{"a": "A", "b": "B", "lis": 0.7917, "clis": 0.0, "ilis": 0.0,
+                           "lia": 8, "clia": 0, "ilia": 0.0, "ilisa": 0.0}])
 
 
 class StorageTests(unittest.TestCase):
@@ -337,7 +343,10 @@ class StorageTests(unittest.TestCase):
                       "interfacePae": [{"a": "A", "b": "B", "mean": 3.5}],
                       "ipSae": [{"a": "A", "b": "B", "value": 0.82}],
                       "interfaceContacts": [{"a": "A", "b": "B", "pairs": 9, "resA": [[0, 3]], "resB": [[4, 6]]}],
-                      "interfaceLines": [{"i": 0, "j": 5, "pae": 4.2}]}
+                      "interfaceLines": [{"i": 0, "j": 5, "pae": 4.2}],
+                      "interfaceScores": [{"a": "A", "b": "B", "lis": 0.9, "clis": 0.8,
+                                           "ilis": 0.85, "lia": 20, "clia": 12,
+                                           "ilia": 15.5, "ilisa": 13.17}]}
             store.finish(job["id"], "completed",
                          result={"sequenceLength": 2, "meanPlddt": 88.1, "iptm": 0.72, **arrays})
             summary = store.list()[0]["result"]

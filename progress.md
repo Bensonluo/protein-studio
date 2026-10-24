@@ -201,3 +201,9 @@
 - 研究：PAE Viewer NAR 全文（拖框选区：打分 x 段青色、对齐 y 段橙色、重叠洋红；框下均值读数）+ ChimeraX Recipes Mean PAE（「Mean PAE 5.97 in dragged box /A:139-176 aligned to /A:2-19」句式）+ Jalview/EBI AFDB 联动生态（六源）；纯点击保留 #16「读局部窗口」契约。
 - 实现：pae-viewer 拖拽机件（mousedown/>4px 阈值/mouseup 二分：成框→finalizeSelection、纯点击→原窗口加载）；finalizeSelection 原始索引区间 + 非空格均值 + （采样格）标注 + 清除选区按钮 + setPAESelection 仅对齐时联动；Escape 全局键 + stop() 清选区；app.js 三色序列条类 + applyViewerStyle 三色球体（仅行橙/仅列青/重叠洋红，r=1.2）。自审纠错：#22 悬停双色映射与 PAE Viewer 原文相反（打分列应青、对齐行应橙），本轮一并修正（app.js + pae_lazy 断言 + README 三处）。
 - 验证：pae_lazy 19/19 首跑即绿（含 mouse.down→move→up 拖拽模拟、均值 4.50 Å 精确断言、Escape 清除、3D 三色原子）；十层链 t1–t10 全绿（全量后端 331 OK/1 skip/72.4s，#24 未动后端）；SEC-GREP 手动 diff-scoped CLEAN。English commit: feat: PAE drag-box selection with mean readout and linked ranges。
+
+### 迭代 #25（2026-10-25）：每对链 AFM-LIS 本地界面度量（iLIS 家族）
+
+- 研究：LIVIA About 度量定义表 + flyark/AFM-LIS 源码（transform/mean 双向实现）+ Kim & Perrimon 2026 bioRxiv + af-analysis 独立实现 + Kim 2024 原始 LIS 论文 + LIVIA Prediction Analysis 阈值页（六源）；actifpTM 候选被排除——正牌需 AF2 distogram（AF3 不产出，Dall'Armellina 2025 明示），LIVIA 亦仅 PAE 近似且自标偏高，诚实优先不实现。
+- 实现：interface_contacts 单遍历新增 LIS 家族（conf=1−PAE/12 ROC 优化 cutoff、两方向各自均值再平均、cLIS 限 Cα≤8Å 接触格、iLIS=√(LIS×cLIS) 无接触即 0、LIA/cLIA/iLIA/iLISA）；attach/server 落 interfaceScores；store 剥离；前端 chips 追加 iLIS 按 LIVIA Y2H FPR 分带（0.551/0.339/0.223）着色 + tooltip 全口径说明（Cα 代 Cβ 如实标注）。
+- 验证：自捕真 bug——close_pairs 只存 小→大 有序对，反向接触格漏查致 B→A 方向 cLIS 漏计，冒烟对拍手算发现并修复；后端 40/40（手算 fixture 精确断言 LIS 0.6806/cLIS 0.75/iLIS 0.7144）；browser_ranked_models 20/20 首跑即绿；十层链 10/10（后端 332 OK/1 skip/70.8s）；SEC-GREP 手动 diff-scoped CLEAN。English commit: feat: per-chain-pair iLIS local interface scores。
