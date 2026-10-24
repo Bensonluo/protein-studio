@@ -24,7 +24,7 @@ const icons = {
 const icon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name] || icons.molecule}</svg>`;
 const $ = selector => document.querySelector(selector);
 const escapeHTML = text => String(text ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const state = {view:'studio', jobs:[], selectedId:null, job:null, system:{engines:[]}, engines:[], example:null, selectedEngine:'reference', viewer:null, style:'cartoon', color:'confidence', spinning:false, light:false, selectedResidue:null, search:'', filter:'all', pending:false, autoSeeded:false, sources:[], error:null, engineDrafts:{}, parametersEngine:null, submitting:false, selectionRequest:0, modelIndex:0, modelJobId:null, jobsSort:'recent', polling:false};
+const state = {view:'studio', jobs:[], selectedId:null, job:null, system:{engines:[]}, engines:[], example:null, selectedEngine:'reference', viewer:null, style:'cartoon', color:'confidence', spinning:false, light:false, selectedResidue:null, search:'', filter:'all', pending:false, autoSeeded:false, sources:[], error:null, engineDrafts:{}, parametersEngine:null, submitting:false, selectionRequest:0, modelIndex:0, modelJobId:null, jobsSort:'recent', lowConf:0, polling:false};
 const statusLabels = {completed:'已完成',running:'运行中',queued:'排队中',failed:'失败',cancelled:'已取消'};
 const engineNames = {reference:'参考结构',alphafold2:'AlphaFold 2',alphafold3:'AlphaFold 3',colabfold:'ColabFold',import:'结构导入'};
 const views = {studio:['结构工作台','从序列，到结构。','连接预测、计算与发现，探索蛋白质的三维世界。'],jobs:['任务队列','每一次探索，都有迹可循。','管理预测任务，查看执行进展、参数与交付结果。'],pipeline:['预测管线','让科学计算，流动起来。','从输入校验到结果交付，连接每一个计算阶段。'],sources:['研究与依据','站在开放科学的肩膀上。','采用经过核查的官方实现，让技术选择与结果来源可追溯。'],environment:['运行环境','为真实计算，做好准备。','检查引擎可用状态，将工作台连接到你的 GPU 与预测环境。']};
@@ -103,7 +103,7 @@ function renderStudio() {
   const name=escapeHTML(job.name), source=result.provenance||{};
   const detail=`<div class="job-detail-bar"><div><strong>${name}</strong>${statusPill(job.status)}<span class="model-badge" style="margin-left:8px">${escapeHTML(engineNames[job.engine]||job.engine)}</span></div><div class="task-actions">${job.status==='running'||job.status==='queued'?`<button class="text-button" data-cancel="${job.id}">取消任务</button>`:''}${job.status==='failed'||job.status==='cancelled'?`<button class="text-button" data-retry="${job.id}">重新运行</button>`:''}<button class="text-button" id="export-job">导出任务 ${icon('download')}</button></div></div>`;
   if(job.resultAvailability?.status==='legacy-large-result')return summary+detail+window.renderResultAvailability(job);
-  const viewerPanel=`<div class="panel viewer-panel"><div class="panel-heading"><h2>${icon('molecule')}三维结构<span class="structure-name">${name}</span></h2><div class="viewer-tabline">${renderViewerTabline(job)}</div></div><div class="viewer-container ${state.light?'light-viewer':''}" id="viewer-container"><div class="viewer-grid"></div><div id="molecule-viewer" class="viewer-canvas"></div><div class="viewer-loading" id="viewer-loading">${job.status==='completed'?'<div class="loader"></div><span>构建三维视图</span>':`<div class="${job.status==='running'?'loader':''}"></div><span>${escapeHTML(job.error||statusLabels[job.status]||'等待计算结果')}</span>`}</div><div class="viewer-topline"><span class="viewer-badge"><i></i>${job.engine==='reference'?'公开参考结构':job.engine==='import'?'导入结构':'预测结构'}</span><span class="viewer-chip">${length} RESIDUES · ${chains} CHAIN${chains>1?'S':''}</span></div><div class="viewer-actions"><button class="viewer-action ${state.spinning?'active':''}" id="rotate-view" title="自动旋转" aria-label="自动旋转">${icon('rotate')}</button><button class="viewer-action" id="reset-view" title="重置视角" aria-label="重置视角">${icon('target')}</button><button class="viewer-action" id="light-view" title="切换背景" aria-label="切换背景">${icon('sun')}</button><button class="viewer-action" id="snapshot-view" title="导出图片" aria-label="导出三维图片">${icon('camera')}</button><button class="viewer-action" id="fullscreen-view" title="全屏查看" aria-label="全屏查看">${icon('expand')}</button></div><div class="viewer-overlay-bottom"><svg class="axis" viewBox="0 0 40 40"><path d="M13 27V6M13 27h23M13 27 3 36" stroke-width="1" stroke="#8aa6a7"/><text x="10" y="5" font-size="6" fill="#a2c4b1">Y</text><text x="35" y="25" font-size="6" fill="#adc391">X</text><text x="1" y="39" font-size="6" fill="#7fa1b9">Z</text></svg><span class="viewer-instructions">拖动旋转 · 滚轮缩放 · 点击残基</span></div></div><div class="viewer-toolbar"><div class="segmented" aria-label="分子显示方式"><button data-style="cartoon" class="${state.style==='cartoon'?'active':''}">Cartoon</button><button data-style="stick" class="${state.style==='stick'?'active':''}">Ball & stick</button><button data-style="surface" class="${state.style==='surface'?'active':''}">Surface</button></div><select class="color-select" id="color-mode" aria-label="结构着色"><option value="confidence" ${state.color==='confidence'?'selected':''}>${confidence.length?'按 pLDDT 着色':'按链着色'}</option><option value="spectrum" ${state.color==='spectrum'?'selected':''}>N → C 光谱</option><option value="chain" ${state.color==='chain'?'selected':''}>按链着色</option></select></div><div class="viewer-legend">${confidence.length?`<div class="legend-stops"><span><i style="background:#65a5e8"></i>≥90</span><span><i style="background:#66d0d8"></i>70–90</span><span><i style="background:#e7ce68"></i>50–70</span><span><i style="background:#e59263"></i>&lt;50</span><span>pLDDT</span><span title="缺失置信度或无法精确对应残基"><i style="background:#8e9ca6"></i>未匹配</span></div>`:'<span>颜色表示链或序列位置</span>'}<span class="viewer-origin">${safeSourceLink(source)}</span></div></div>`;
+  const viewerPanel=`<div class="panel viewer-panel"><div class="panel-heading"><h2>${icon('molecule')}三维结构<span class="structure-name">${name}</span></h2><div class="viewer-tabline">${renderViewerTabline(job)}</div></div><div class="viewer-container ${state.light?'light-viewer':''}" id="viewer-container"><div class="viewer-grid"></div><div id="molecule-viewer" class="viewer-canvas"></div><div class="viewer-loading" id="viewer-loading">${job.status==='completed'?'<div class="loader"></div><span>构建三维视图</span>':`<div class="${job.status==='running'?'loader':''}"></div><span>${escapeHTML(job.error||statusLabels[job.status]||'等待计算结果')}</span>`}</div><div class="viewer-topline"><span class="viewer-badge"><i></i>${job.engine==='reference'?'公开参考结构':job.engine==='import'?'导入结构':'预测结构'}</span><span class="viewer-chip">${length} RESIDUES · ${chains} CHAIN${chains>1?'S':''}</span></div><div class="viewer-actions"><button class="viewer-action ${state.spinning?'active':''}" id="rotate-view" title="自动旋转" aria-label="自动旋转">${icon('rotate')}</button><button class="viewer-action" id="reset-view" title="重置视角" aria-label="重置视角">${icon('target')}</button><button class="viewer-action" id="light-view" title="切换背景" aria-label="切换背景">${icon('sun')}</button><button class="viewer-action" id="snapshot-view" title="导出图片" aria-label="导出三维图片">${icon('camera')}</button><button class="viewer-action" id="fullscreen-view" title="全屏查看" aria-label="全屏查看">${icon('expand')}</button></div><div class="viewer-overlay-bottom"><svg class="axis" viewBox="0 0 40 40"><path d="M13 27V6M13 27h23M13 27 3 36" stroke-width="1" stroke="#8aa6a7"/><text x="10" y="5" font-size="6" fill="#a2c4b1">Y</text><text x="35" y="25" font-size="6" fill="#adc391">X</text><text x="1" y="39" font-size="6" fill="#7fa1b9">Z</text></svg><span class="viewer-instructions">拖动旋转 · 滚轮缩放 · 点击残基</span></div></div><div class="viewer-toolbar"><div class="segmented" aria-label="分子显示方式"><button data-style="cartoon" class="${state.style==='cartoon'?'active':''}">Cartoon</button><button data-style="stick" class="${state.style==='stick'?'active':''}">Ball & stick</button><button data-style="surface" class="${state.style==='surface'?'active':''}">Surface</button></div><select class="color-select" id="color-mode" aria-label="结构着色"><option value="confidence" ${state.color==='confidence'?'selected':''}>${confidence.length?'按 pLDDT 着色':'按链着色'}</option><option value="spectrum" ${state.color==='spectrum'?'selected':''}>N → C 光谱</option><option value="chain" ${state.color==='chain'?'selected':''}>按链着色</option></select><button class="text-button lowconf-toggle" id="lowconf-toggle" title="低置信区域显示（AF DB FAQ / PDBe-KB / PyMOL 惯例）：pLDDT<50 常为无结构带状、不应解读；PDBe-KB 查看器默认 <70 低不透明度；PyMOL 惯例隐藏 b<50。仅 Cartoon / Ball & stick 生效">低置信显示：${state.lowConf===1?'淡化 <70':state.lowConf===2?'隐藏 <50':'关'}</button></div><div class="viewer-legend">${confidence.length?`<div class="legend-stops"><span><i style="background:#65a5e8"></i>≥90</span><span><i style="background:#66d0d8"></i>70–90</span><span><i style="background:#e7ce68"></i>50–70</span><span><i style="background:#e59263"></i>&lt;50</span><span>pLDDT</span><span title="缺失置信度或无法精确对应残基"><i style="background:#8e9ca6"></i>未匹配</span></div>`:'<span>颜色表示链或序列位置</span>'}<span class="viewer-origin">${safeSourceLink(source)}</span></div></div>`;
   return summary+detail+(result.warnings?.length?`<div class="error-banner">${result.warnings.map(escapeHTML).join('<br>')}</div>`:'')+`<div class="workspace-grid"><div class="left-column">${viewerPanel}${renderSequence(job,result)}${renderStageProgress(job)}${renderResultArtifacts(job)}</div><aside class="right-column">${renderConfidence(result)}${renderChainConfidence(job,result)}${renderPAE(result)}<div class="provenance-card"><div class="provenance-label">${icon('shield')}来源与可复现性</div><p>${escapeHTML(source.mode==='reference'?'已发布的公开结构及分析数据，用于体验工作流。提交新的真实预测需配置对应引擎。':source.mode==='import'?'已导入的结构文件。结构本身不会自动产生模型置信度。':'输入序列、参数、执行日志与结果随任务保存在本地。')}<br>${escapeHTML(source.sourceLabel||source.model||engineNames[job.engine]||'')}</p></div></aside></div><div class="lower-grid">${renderJobsTable(state.jobs.slice(0,4),'最近任务',true)}</div>`;
 }
 
@@ -277,6 +277,36 @@ function bFactorConfidenceColorer() {
   if(!factors.length||!factors.some(value=>value>0&&value<=100))return null;
   return atom=>{const value=Number(atom.b);return Number.isFinite(value)&&value>0&&value<=100?confidenceColor(value):'#8e9ca6';};
 }
+function lowConfidenceSelection(threshold) {
+  // Selection groups for low-confidence display modes (AF DB FAQ: pLDDT < 50
+  // regions are often unstructured and must not be interpreted; PDBe-KB dims
+  // < 70; PyMOL users hide b < 50). Ranked samples read the B-factor column,
+  // the primary model maps residue pLDDT by the colorer's identity rules.
+  // Returns null when no per-residue confidence maps to atoms, or when the
+  // subset would cover every atom — a blanked view hides rather than informs.
+  const groups=new Map();let scored=0;
+  const add=(chain,resi)=>{const key=String(chain??'').trim()||'A';if(!groups.has(key))groups.set(key,new Set());groups.get(key).add(Number(resi));};
+  if(viewerModelInfo().index>0){
+    const atoms=state.viewer?.getModel()?.selectedAtoms?.({})||[];
+    for(const atom of atoms){
+      const value=Number(atom.b);
+      if(!(value>0&&value<=100))continue;
+      scored++;if(value<threshold)add(atom.chain,atom.resi);
+    }
+  } else {
+    if(!getPlddt().length)return null;
+    for(const residue of getResidues()){
+      const value=residue.plddt;
+      if(!(Number.isFinite(value)&&value>=0&&value<=100))continue;
+      scored++;
+      const number=Number(residue.residueNumber);
+      if(Number.isInteger(number)&&value<threshold)add(residue.chain,number);
+    }
+  }
+  const low=[...groups.values()].reduce((sum,set)=>sum+set.size,0);
+  if(!groups.size||!scored||low>=scored)return null;
+  return [...groups].map(([chain,set])=>({chain,resi:[...set]}));
+}
 function bFactorResidueCurve() {
   // Per-residue pLDDT for the selected non-primary sample, read from CA B factors
   // under the same AF2/ColabFold/AF3 convention as bFactorConfidenceColorer.
@@ -304,6 +334,16 @@ function applyViewerStyle() {
   if(state.style==='cartoon')v.setStyle({},{cartoon:{...coloring,thickness:.5,style:'rectangle'}});
   if(state.style==='stick')v.setStyle({},{stick:{radius:.13,...coloring},sphere:{scale:.22,...coloring}});
   if(state.style==='surface'){v.setStyle({},{cartoon:{...coloring,opacity:.55}});v.addSurface(window.$3Dmol.SurfaceType.VDW,{opacity:.8,...coloring});}
+  if(state.lowConf&&state.style!=='surface'){
+    const threshold=state.lowConf===1?70:50, groups=lowConfidenceSelection(threshold);
+    if(groups)for(const group of groups){
+      const sel={chain:group.chain,resi:group.resi};
+      if(state.lowConf===1){
+        if(state.style==='cartoon')v.setStyle(sel,{cartoon:{...coloring,thickness:.5,style:'rectangle',opacity:.18}});
+        if(state.style==='stick')v.setStyle(sel,{stick:{radius:.13,...coloring,opacity:.18},sphere:{scale:.22,...coloring,opacity:.18}});
+      }else v.setStyle(sel,{});
+    }
+  }
   v.render();
 }
 function selectAtom(atom) {state.viewer?.removeAllLabels();state.viewer?.addLabel(`${atom.resn||''} ${atom.chain||''}:${atom.resi}`,{position:{x:atom.x,y:atom.y,z:atom.z},fontSize:11,backgroundColor:'#183c39',fontColor:'#e4f5d8',borderRadius:5,backgroundOpacity:.85});state.viewer?.render();const residues=getResidues();const i=residues.findIndex(r=>r.chain===(atom.chain||'A')&&(Number(r.residueNumber??r.index)===Number(atom.resi)||Number(r.resi)===Number(atom.resi)));if(i>=0)highlightSequence(i);else if($('#sequence-selection'))$('#sequence-selection').textContent=`${atom.resn||'Residue'} · ${atom.chain||'A'}:${atom.resi}`;}
@@ -355,8 +395,16 @@ function bindViewEvents() {
   $('#export-jobs')?.addEventListener('click',()=>downloadJSON(filteredJobs(),'foldspace-filtered-jobs.json'));
   $('#job-search')?.addEventListener('input',e=>{state.search=e.target.value;refreshJobsTable();});
   $('#job-filter')?.addEventListener('change',e=>{state.filter=e.target.value;refreshJobsTable();});
-  document.querySelectorAll('[data-style]').forEach(el=>el.addEventListener('click',()=>{state.style=el.dataset.style;document.querySelectorAll('[data-style]').forEach(b=>b.classList.toggle('active',b===el));applyViewerStyle();}));
+  document.querySelectorAll('[data-style]').forEach(el=>el.addEventListener('click',()=>{state.style=el.dataset.style;if(state.style==='surface'&&state.lowConf)toast('Surface 模式不参与低置信区域显示');document.querySelectorAll('[data-style]').forEach(b=>b.classList.toggle('active',b===el));applyViewerStyle();}));
   $('#color-mode')?.addEventListener('change',e=>{state.color=e.target.value;applyViewerStyle();});
+  $('#lowconf-toggle')?.addEventListener('click',()=>{
+    const next=(state.lowConf+1)%3, threshold=next===1?70:50;
+    if(next&&state.style==='surface'){toast('Surface 模式不参与低置信区域显示');return;}
+    if(next&&!lowConfidenceSelection(threshold)){toast('当前视图无逐残基置信度，无法切换低置信显示');return;}
+    state.lowConf=next;
+    $('#lowconf-toggle').textContent=`低置信显示：${next===1?'淡化 <70':next===2?'隐藏 <50':'关'}`;
+    applyViewerStyle();
+  });
   $('#model-select')?.addEventListener('change',e=>switchViewerModel(Number(e.target.value)));
   document.querySelectorAll('[data-view-model]').forEach(el=>el.addEventListener('click',()=>switchViewerModel(Number(el.dataset.viewModel))));
   document.addEventListener('click',e=>{const sort=e.target.closest('[data-jobs-sort]');if(sort){state.jobsSort=state.jobsSort==='confidence'?'recent':'confidence';refreshJobsTable();}});
