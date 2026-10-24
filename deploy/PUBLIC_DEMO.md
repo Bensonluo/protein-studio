@@ -20,7 +20,7 @@ Limits in the public override: 384 MiB memory, 0.75 CPU, 96 processes, bounded c
 
 ## Deployed layout and rollback
 
-- Application release: `/opt/protein-studio/releases/20261023-public`
+- Application release: `/opt/protein-studio/releases/20261025-public` (2026-10-25 update through commit `9748e3b`; previous `20261023-public` directory retained — the `protein-studio:public` tag is overwritten on rebuild, so rollback means rebuilding from the old release directory)
 - Compose project / container: `foldspace-public` / `foldspace-public-studio-1`
 - Nginx snippet: `/etc/nginx/snippets/foldspace.conf`
 - Previous Nginx configuration: `/opt/protein-studio/backups/nginx-default-before-foldspace.conf`
@@ -39,5 +39,6 @@ The portfolio release is built from the existing local working tree with the Fol
 - Public HTTPS browser: 229-residue AFDB view, PAE, three completed targets, read-only controls, mobile layout; no browser mutation requests or runtime errors.
 - Portfolio: type check, lint, static export, 79 Jest tests and 7 citation tests passed; homepage/list/detail, bilingual gallery and 390px layout verified over HTTPS.
 - Existing RAG health and Stock Agents frontend remain HTTP 200.
+- 2026-10-25 update: rsync release + compose rebuild (pip layer now on the Aliyun PyPI mirror), container healthy; same-origin `/api/health` 200 over HTTPS, public `app.js` carries the pDockQ family and interface-focus features; direct host curl without the public origin is rejected by design.
 
 Detailed generated evidence stays outside Git under `artifacts/`, including `tencent-foldspace-browser.json`, `portfolio-foldspace-live-verification.json` and screenshots. No production GPU prediction was executed in this deployment.

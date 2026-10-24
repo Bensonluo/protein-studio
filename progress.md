@@ -243,3 +243,10 @@
 - 源：3Dmol.js 官方文档（zoomTo(sel) 选择居中+slab、空选择全场景、AtomSelectionSpec.predicate）+ ChimeraX view/Focus 官方文档与邮件列表（focus=平移+缩放+裁剪面包裹选中项）+ Mol* Maneuvering 官方文档（选中即聚焦）（三源）。
 - 实现：接触行「聚焦界面」按钮 → interfacePairSelection 单链对 {chain,resi} 组 → predicate 选择 → zoomTo 即时聚焦；同键再点回全貌；selectedAtoms 空不聚焦；仅主模型。附带两个真实修复：① t5 harness 静态服务器无缓存头→Chromium 启发式缓存旧 app.js（会话中改文件即踩），补 Cache-Control:no-store；② bindViewEvents 每次 renderMain 重复注册 document 级委托监听器——单击 N 连击（数据排序按钮同病已久），加 bindViewEvents.bound 幂等守卫。
 - 验证（长调试弧，诚实全记）：首红貌似点击无效→11 轮探针逐一排除（直调成功/合成点击成功/事件冒泡正常/监听器存在且调用/无异常/无 DOM 重建）→全量插桩终判：单次 click 处理器执行 3 次（focus-path,toggle-off 交替）＝监听器堆叠；初判 Playwright 重试双击/缓存陈旧均被后续证据修正为表象。修复后 browser_ranked_models 26/26 绿；十层链见下；SEC-GREP 手动 diff-scoped CLEAN。English commit: feat: interface focus camera with idempotent event binding。
+
+### 2026-10-25 公开发布更新 20261025-public（部署上云，用户授权）
+
+- 用户指示：合适里程碑收尾即停循环、先部署上云。#31 落库（e2f77ef）后取消 cron 53f50f6b，打磨循环终止于 26 次功能提交。
+- 发布准备 9748e3b：Dockerfile pip 层加 Aliyun PyPI 镜像（根治国内构建缓存失效即卡死的既存风险）；.dockerignore 补 .omc/artifacts。
+- 流程：rsync 6.0M（排除 .git/.venv/.omc/artifacts/data）→ /opt/protein-studio/releases/20261025-public → `docker compose -p foldspace-public -f compose.yaml -f deploy/public-demo.compose.yaml up -d --build` → 容器 22s healthy。
+- 验证：https://benluo.art/foldspace/ 200；带同源 Origin 头 /api/health 200；线上 app.js 含 pDockQ 家族与「聚焦界面」（迭代 #29–#31 已上线）；宿主直连 403 为公开演示同源策略按设计工作；portfolio 邻居 200 不受扰。回滚：旧目录 20261023-public 保留（tag 已覆盖，回滚=旧目录重建）。
