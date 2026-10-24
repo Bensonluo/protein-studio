@@ -268,6 +268,18 @@ class APITests(unittest.TestCase):
         self.assertEqual(status, 201, mismatch)
         self.assertIsNone(mismatch["result"]["plddt"])
         self.assertTrue(mismatch["result"]["warnings"])
+        status, pae_mismatch = self.request("/api/import", "POST", {
+            "format": "pdb", "structureText": PDB,
+            "confidence": {"pae": [[0.0, 1.5], [1.5, 0.0]], "token_chain_ids": ["A", "B"]}})
+        self.assertEqual(status, 201, pae_mismatch)
+        self.assertIsNone(pae_mismatch["result"]["pae"])
+        self.assertNotIn("interfacePae", pae_mismatch["result"])
+        self.assertNotIn("paeArtifact", pae_mismatch["result"])
+        self.assertTrue(any("axes would not align" in w for w in pae_mismatch["result"]["warnings"]))
+        status, pae_aligned = self.request("/api/import", "POST", {
+            "format": "pdb", "structureText": PDB, "confidence": {"pae": [[1.5]]}})
+        self.assertEqual(status, 201, pae_aligned)
+        self.assertEqual(pae_aligned["result"]["pae"], [[1.5]])
 
 
 class StorageTests(unittest.TestCase):

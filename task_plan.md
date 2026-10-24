@@ -320,3 +320,19 @@
 验证计划：语法检查、PAE 契约 16/16、排名模型契约 15/15（回归）、workspace-ux 离线 5 套件、隔离 8973 分数契约 12/12、批次回归 9/9、深链端到端 4/4、冒烟 12 检查（8974）、根 tests OK、客户端通过、全后端 327 OK（1 按需 skip）。
 
 验证结果：九层链路全绿（23:36–23:41）：语法 OK；PAE 契约 16/16（13→16，+3 链边界检查）；排名模型契约 15/15 回归通过；workspace-ux 离线 5 套件 OK；隔离 8973 分数契约 12/12、批次回归 9/9、深链端到端 4/4；冒烟 12（8974）；根 tests OK；campaign_client 通过；全后端 327 OK（1 按需 skip，76.3s）。独立探针几何复核：DOM 分隔线 CSS 位置与画布颜色跃变像素对齐（109.5/220=49.78%，±0.5px），线宽恰 1px、白色 0.85 不透明度加 0.5px 深色描边，深/浅数据块上均可见，开关按钮与 aria-pressed 正常。开发期三修如实记：契约初跑暴露 CSSOM 百分比 6 位有效数字序列化（断言改数值容差）、paintOverlay 漏 return（链边界方法注未附，自查定位）、跨结果缓存 key 切换后无自动绘制（测试改显式点击加载）。
+
+## 2026-10-24 持续迭代：导入置信度对齐守卫
+
+上轮候选落地。依据三源：ChimeraX `alphafold pae` 官方文档（PAE 轴按索引对应关联模型的残基，PAE file 子命令在维度与模型不匹配时拒绝关联，https://www.cgl.ucsf.edu/chimerax/docs/user/commands/alphafold.html）、AlphaFold3 `output.md`（token_res_ids 定义 PAE 轴与残基 token 的一一对应语义）、PAE Viewer webserver（Elfmann & Stülke 2023，链标签必须与结构一致才可分段，https://pmc.ncbi.nlm.nih.gov/articles/PMC10320053/）。检查发现导入路径 pLDDT 已有长度守卫（不匹配不赋值并警告），但 PAE 矩阵维度与结构残基数无校验——错配矩阵会静默挂接，PAE 查看器随后把矩阵行列错误地解释为该结构的残基位置。补导入期 PAE 对齐守卫。
+
+1. [完成] server.import_structure：parse_confidence 后校验 PAE 维度，N×N ≠ 解析残基数时弹出 pae 与 interfacePae（矩阵派生量）不挂接，附警告说明维度与轴无法对齐、原始 confidence JSON 保留下载；对齐时照常挂接（大矩阵外部化、小矩阵内联的既有路径不变）。
+2. [完成] pLDDT 长度守卫既有行为保持不动；>2000 token 上限警告路径不变（无双重警告——pae 键已缺省）。
+3. [完成] 测试扩展 test_import_confidence_alignment_and_mismatch：2×2 PAE + token_chain_ids 导入 1 残基结构 → pae=None、无 interfacePae / paeArtifact、警告含「axes would not align」；对齐 1×1 → 矩阵保留 [[1.5]] 供查看器内联读取。
+4. [完成] README 第 7 项补对齐校验与 ChimeraX 拒绝关联惯例说明；警告经既有 error-banner 展示（已转义）。
+5. [完成] 如实记：守卫上线即揪出既有夹具缺陷——test_proxy_paths 挂载路径测试用 1 残基 PDB 配 129×129 PAE（旧代码静默挂接错配矩阵，把缺陷当特性用）。夹具改为 129 残基对齐结构（PDB129，按原 ATOM 列格式逐字符校准；初版 serial 域差一列被解析器拒绝、二次修正），挂载路径与不对称数值、瓦片断言全保留。
+
+改动文件：backend/server.py、backend/tests/test_api.py、backend/tests/test_proxy_paths.py（夹具对齐修复）、README.md（第 7 项一句）。
+
+验证计划：py_compile、定向导入测试、后端全测 327、根 tests、campaign_client、PAE 契约 16/16、排名模型契约 15/15、workspace-ux 5 套件、隔离 8973 分数 12/12、批次回归 9/9、深链 4/4、冒烟 12（8974）。
+
+验证结果：十层链路全绿（23:55–23:59）：py_compile OK；定向导入测试 2/2；PAE 契约 16/16；排名模型契约 15/15；workspace-ux 5 套件 OK；隔离 8973 分数 12/12、批次回归 9/9、深链 4/4；冒烟 12（8974）；根 tests OK；campaign_client 通过；全后端 327 OK（1 按需 skip）。如实记两次红：①初跑 T10 的 test_proxy_paths 2 errors 系守卫按设计揪出夹具缺陷（见第 5 条），夹具对齐修复后整链重跑；②重跑 T10 的 test_mmseqs_af3_runner 心跳超时测试 1 failure 与本迭代 diff 无交集（导入路径不触 mmseqs 运行器），隔离复跑 12/12 OK + 整层单独复跑 327 OK（84.1s），判负载时序抖动。安全 grep 干净。

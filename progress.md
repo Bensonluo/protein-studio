@@ -157,3 +157,11 @@
 验证计划：语法、PAE 契约 16/16、排名模型契约 15/15、workspace-ux 5 套件、隔离 8973 分数 12/12、批次回归 9/9、深链 4/4、冒烟 12（8974）、根 tests、campaign_client、全后端 327 OK（1 按需 skip）。演示服务用后即停；主服务 8765 未动；无部署。
 
 验证结果：九层链路全绿——语法、PAE 契约 16/16（+3）、排名模型契约 15/15、workspace-ux 5 套件、隔离 8973 分数 12/12、批次回归 9/9、深链 4/4、冒烟 12（8974）、根 tests、campaign_client、全后端 327 OK（1 按需 skip）。探针几何复核分隔线与画布颜色跃变像素精确对齐（±0.5px、1px 线宽、深浅块均可见）。安全 grep 干净。演示服务 8973/8974 用后即停；主服务 8765 未动；无部署。
+
+## 2026-10-24 导入置信度对齐守卫迭代
+
+按 ChimeraX `alphafold pae`（PAE 轴按索引对应关联模型残基、维度不匹配拒绝关联）、AF3 output.md token_res_ids 对应语义与 PAE Viewer 链标签一致性要求三源口径，为导入路径补 PAE 对齐守卫：parse_confidence 产出 N×N 矩阵与结构解析残基数不等时不挂接（弹 pae 与派生 interfacePae），警告如实说明轴无法对齐、原始 JSON 保留下载；pLDDT 长度守卫既有；对齐矩阵走既有内联/外部化路径。测试扩展对齐与错配双场景，全后端 327。守卫上线即揪出 test_proxy_paths 既有夹具缺陷（1 残基 PDB 配 129×129 PAE 静默挂接），夹具改为 129 残基对齐结构后挂载路径与数值断言全保留。改动文件：backend/server.py、backend/tests/test_api.py、backend/tests/test_proxy_paths.py、README.md。
+
+验证计划：py_compile、定向导入测试、后端 327、根 tests、campaign_client、PAE 契约 16/16、排名模型 15/15、workspace-ux 5 套件、隔离 8973 分数 12/12、批次 9/9、深链 4/4、冒烟 12（8974）。演示服务用后即停；主服务 8765 未动；无部署。
+
+验证结果：十层链路全绿——py_compile、导入定向 2/2、PAE 契约 16/16、排名模型 15/15、workspace-ux 5 套件、隔离 8973 分数 12/12、批次 9/9、深链 4/4、冒烟 12（8974）、根 tests、campaign_client、全后端 327 OK（1 按需 skip）。两次红如实记：夹具缺陷由守卫揪出后对齐修复；mmseqs 心跳测试判负载抖动（隔离 12/12 + 整层 327 复跑绿）。安全 grep 干净。演示服务 8973/8974 用后即停；主服务 8765 未动；无部署。

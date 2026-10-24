@@ -552,6 +552,17 @@ class StudioApplication:
                     else:
                         parsed_confidence.setdefault("warnings", []).append(
                             "Confidence pLDDT length does not match parsed residues; the vector was not assigned to residues.")
+                pae = parsed_confidence.get("pae")
+                if pae is not None and len(pae) != len(result["residues"]):
+                    # PAE axes pair with residues by index (ChimeraX "alphafold pae"
+                    # associates a matrix with a model and refuses on dimension
+                    # mismatch); an unaligned matrix would silently mislabel residues.
+                    parsed_confidence.pop("pae")
+                    parsed_confidence.pop("interfacePae", None)
+                    parsed_confidence.setdefault("warnings", []).append(
+                        f"Imported PAE is {len(pae)}x{len(pae)} but the structure parsed "
+                        f"{len(result['residues'])} residues; the matrix was not attached because its "
+                        "axes would not align with residues. Raw confidence JSON remains downloadable.")
                 result.update(parsed_confidence)
                 artifacts.append({"path": str(confidence_path)})
             result.update(structurePath=str(path), structureFile=path.name,

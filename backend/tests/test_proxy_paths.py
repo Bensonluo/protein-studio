@@ -13,6 +13,9 @@ from backend.server import StudioApplication, StudioHTTPServer
 
 ROOT = Path(__file__).resolve().parents[2]
 PDB = 'ATOM      1  CA  ALA A   1       1.000   2.000   3.000  1.00 20.00           C  \nEND\n'
+# Aligned companion for the 129x129 confidence fixture: one CA per residue.
+PDB129 = ''.join(f'ATOM{i:7d}  CA  ALA A{i:4d}    {1.0+(i%9):8.3f}{2.0+(i%7):8.3f}{3.0+(i%5):8.3f}  1.00 20.00           C  \n'
+                 for i in range(1, 130)) + 'END\n'
 
 
 @contextmanager
@@ -93,11 +96,11 @@ class MountedHTTPTests(unittest.TestCase):
                 # The asymmetric synthetic matrix verifies exact numbers across serialization and fetch.
                 confidence = {'pae':[[float(i) + j / 1000 for j in range(129)] for i in range(129)]}
                 status, job, _ = request(origin, base + '/api/import', 'POST',
-                    {'name':'Mount-path fixture', 'structureText':PDB, 'format':'pdb', 'source':'unknown', 'confidence':confidence})
+                    {'name':'Mount-path fixture', 'structureText':PDB129, 'format':'pdb', 'source':'unknown', 'confidence':confidence})
                 self.assertEqual(status, 201, job)
                 jid = job['id']; result = job['result']
                 self.assertEqual(result['structureUrl'], base + f'/api/jobs/{jid}/structure')
-                self.assertEqual(request(origin, result['structureUrl'])[1].decode(), PDB)
+                self.assertEqual(request(origin, result['structureUrl'])[1].decode(), PDB129)
                 self.assertEqual(request(origin, result['artifacts'][0]['url'])[0], 200)
                 descriptor = result['paeArtifact']
                 status, tile, _ = request(origin, descriptor['tileUrl'] + '?rowStart=1&colStart=2&rows=1&cols=2')
