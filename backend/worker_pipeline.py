@@ -15,7 +15,7 @@ import time
 from pathlib import Path
 from urllib.parse import quote
 
-from .campaigns import CampaignStore, publication_file, checked_publication, PUBLICATION_LIMIT
+from .campaigns import CampaignStore, publication_file, checked_publication, PUBLICATION_LIMIT, result_scores_from
 from .preparation_resources import PreparationResourceGuard
 from .preparation_control import PreparationDeferred, retry_delay
 from .cache_access import shared_cache
@@ -314,7 +314,8 @@ class PipelineScheduler:
                 item_root = self.items_root/claim['campaign_id']/claim['id']
                 publication = {'schema': 1, 'result': publication_file(item_root, path),
                                'structure': publication_file(item_root, item_root/result['structureFile'])}
-                self.store.advance(*key, 'completed', result_path=str(path), result_publication=publication)
+                self.store.advance(*key, 'completed', result_path=str(path), result_publication=publication,
+                                   result_scores=result_scores_from(result))
         except PreparationDeferred as exc:
             if kind == 'prepare' and not cancelled():
                 self.store.defer_preparation(*key, exc.progress, retry_delay(claim['id'], claim.get('prepare_defer_count', 0)),

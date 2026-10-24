@@ -36,3 +36,42 @@
 
 /* Keep campaign controls tied to the visible record while requests settle. */
 .campaign-refresh-state{font-size:10px;line-height:1.7;color:#7f9471;margin:-4px 4px 13px}.campaign-refresh-state[hidden]{display:none}.campaign-refresh-error{margin:0 0 15px;padding:12px 15px;border:1px solid #e7cdb4;background:#fff8ef;border-radius:9px;color:#9c7250;font-size:11px;line-height:1.9;overflow-wrap:anywhere}.campaign-refresh-error p{margin:6px 0 0;color:#967f66;font-size:10px}.campaign-operation-feedback{margin:0 20px 17px;padding:11px 14px;background:#f0f6e7;border:1px solid #dbe8cc;border-radius:8px;color:#698950;font-size:11px;line-height:1.8}.campaign-operation-feedback.completed{background:#f7faf2;color:#809570}.campaign-operation-error{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin:0 20px 17px;padding:14px 16px;border:1px solid #ead0b8;border-radius:10px;background:#fff8ef;color:#9c7250}.campaign-operation-error strong{font-size:11px;font-weight:550}.campaign-operation-error p{font-size:11px;line-height:1.8;margin:6px 0;overflow-wrap:anywhere}.campaign-operation-error small{font-size:9px;color:#a08a6d;line-height:1.8}.campaign-operation-error>.text-button{flex-shrink:0;font-size:10px;color:#a18462}.campaign-cancel-confirm{margin:0 20px 18px;border:1px solid #e2c9ad;border-left:3px solid #bd9871;border-radius:10px;padding:17px 18px;background:#fff9ef}.campaign-cancel-confirm h4{font-size:13px;font-weight:550;color:#8c6543;line-height:1.8;margin:0 0 9px;overflow-wrap:anywhere}.campaign-cancel-confirm p{font-size:11px;color:#a18767;line-height:1.9;margin:0 0 14px}.campaign-cancel-confirm>div{display:flex;gap:10px;flex-wrap:wrap}.campaign-cancel-confirm button{font-size:10px}.batch-dashboard [data-campaign-action]:disabled{cursor:wait}.batch-monitor[aria-busy=true] .campaign-refresh-state:not([hidden]){display:block}.campaign-cancel-confirm :focus-visible{outline:3px solid #b49470;outline-offset:3px}@media(max-width:600px){.campaign-operation-feedback,.campaign-operation-error,.campaign-cancel-confirm{margin-left:13px;margin-right:13px}.campaign-cancel-confirm{padding:14px}.campaign-cancel-confirm h4{font-size:12px}.campaign-cancel-confirm p{font-size:10px}.campaign-operation-error{padding:12px;flex-wrap:wrap}.campaign-cancel-confirm>div{gap:8px}}
+
+/* AF3-style confidence column: ranking score first, EBI ipTM bands for triage. */
+.campaign-list-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.campaign-list-controls select{min-width:0}
+.campaign-score-td{min-width:118px}
+.campaign-score-cell{display:flex;flex-direction:column;gap:3px;align-items:flex-start}
+.campaign-score-value{font:550 11px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:#3c6e52}
+.campaign-score-detail{font:10px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;color:#8a9b7c;overflow-wrap:anywhere}
+.campaign-score-band{font-size:8px;line-height:1.7;border-radius:4px;padding:2px 6px}
+.campaign-score-band.high{color:#3f6f4a;background:#e3f2d3}
+.campaign-score-band.gray{color:#8a7440;background:#f5efdc}
+.campaign-score-band.low{color:#a3603f;background:#f7e6db}
+
+/* Delivered-confidence distribution summary on the campaign dashboard. */
+.campaign-score-bands{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin:11px 2px 3px}
+.campaign-bands-label{font-size:10px;font-weight:550;color:#72816c}
+.campaign-score-bands .campaign-score-band{font-size:9px;white-space:nowrap}
+
+/* Target inspector confidence section: values with band pills share list facts layout. */
+.campaign-inspect-scores dd{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.campaign-inspect-scores .campaign-score-value{font-size:13px}
+
+/* Confidence distribution bars: validated ordered palette (green/gold/orange/deep red),
+   2px surface gaps between segments, legend swatches carry identity. */
+.campaign-score-bands{flex-direction:column;align-items:stretch;gap:6px}
+.campaign-band-row{display:flex;align-items:center;gap:8px}
+.campaign-band-metric{font:550 10px ui-monospace,SFMono-Regular,Menlo,monospace;color:#72816c;min-width:44px}
+.campaign-band-bar{display:flex;height:10px;border-radius:5px;background:#eef2ea;overflow:hidden;flex:1;min-width:160px}
+.campaign-band-seg{flex-basis:0;min-width:3px}
+.campaign-band-seg+.campaign-band-seg{margin-left:2px}
+.campaign-band-seg.s1{background:#2f7d4f}
+.campaign-band-seg.s2{background:#cfaa2d}
+.campaign-band-seg.s3{background:#d96820}
+.campaign-band-seg.s4{background:#9c3226}
+.campaign-band-legend{display:flex;flex-wrap:wrap;gap:5px;padding-left:52px}
+.campaign-band-swatch{display:inline-block;width:7px;height:7px;border-radius:2px;margin-right:4px;vertical-align:baseline}
+.campaign-band-swatch.s1{background:#2f7d4f}
+.campaign-band-swatch.s2{background:#cfaa2d}
+.campaign-band-swatch.s3{background:#d96820}
+.campaign-band-swatch.s4{background:#9c3226}

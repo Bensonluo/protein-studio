@@ -30,6 +30,7 @@ from .store import ConflictError, JobStore
 from .worker_pipeline import PipelineScheduler
 from .distributed import DistributedController, AuthenticationError
 from .storage_service import StorageService
+from .proxy_paths import normalize_base_path, strip_request_target, public_urls, index_html
 
 ROOT = Path(__file__).resolve().parents[1]
 LOG = logging.getLogger("protein-studio")
@@ -64,6 +65,16 @@ class DataDirectoryLock:
             self.file.close()
 
 
+def score_query_params(query):
+    """Parse the shared sort/min_* result-score parameters of items and export."""
+    score_query = {}
+    for name in ("sort", "min_ranking", "min_iptm", "min_ptm", "min_plddt"):
+        value = query.get(name, [None])[0]
+        if value not in (None, ""):
+            score_query[name] = value if name == "sort" else float(value)
+    return score_query
+
+
 def public_job(job):
     result = {k: v for k, v in job.items() if not k.startswith("_")}
     result["artifacts"] = [{"name": name, "url": f"/api/jobs/{job['id']}/artifact?name={quote(name, safe='')}"}
@@ -72,7 +83,8 @@ def public_job(job):
 
 
 class StudioApplication:
-    def __init__(self, data_dir=None, web_dir=None, engine_module=None, workers=1, staged_module=None):
+    def __init__(self, data_dir=None, web_dir=None, engine_module=None, workers=1, staged_module=None, base_path=None):
+        self.base_path = normalize_base_path(os.environ.get("PROTEIN_STUDIO_BASE_PATH", "") if base_path is None else base_path)
         self.data_dir = Path(data_dir or ROOT / "data").resolve()
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.lock = DataDirectoryLock(self.data_dir)
@@ -617,7 +629,7 @@ class StudioHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def _json(self, status, payload):
-        body = json.dumps(payload, ensure_ascii=False, allow_nan=False).encode("utf-8")
+        body = json.dumps(public_urls(payload, self.app.base_path), ensure_ascii=False, allow_nan=False).encode("utf-8")
         self._headers(status, "application/json; charset=utf-8", len(body))
         if self.command != "HEAD":
             self.wfile.write(body)
@@ -654,6 +666,12 @@ class StudioHandler(BaseHTTPRequestHandler):
         return payload
 
     def _file(self, path, download=False):
+        if not download and path == self.app.web_dir / "index.html":
+            body = index_html(path.read_text(encoding="utf-8"), self.app.base_path).encode("utf-8")
+            self._headers(200, "text/html; charset=utf-8", len(body))
+            if self.command != "HEAD":
+                self.wfile.write(body)
+            return
         content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
         if path.suffix.lower() in {".pdb", ".cif", ".mmcif"}:
             content_type = "text/plain; charset=utf-8"
@@ -665,16 +683,22 @@ class StudioHandler(BaseHTTPRequestHandler):
             if self.command != "HEAD":
                 shutil.copyfileobj(handle, self.wfile, length=64 * 1024)
 
-    def _campaign_export(self, campaign_id, stage):
+    def _campaign_export(self, campaign_id, query):
         """Snapshot metadata in bounded pages, then stream one downloadable file.
 
         The database read snapshot ends before sending to a slow client. Large
         coordinates, PAE, sequences and private filesystem paths are not exported.
+        The export accepts the item listing's score sort/threshold parameters so
+        a screening workflow downloads exactly the selected subset; legacy rows
+        are scored by the paged backfill before the snapshot is taken.
         """
-        from .campaigns import STAGES, TERMINAL
+        from .campaigns import STAGES, TERMINAL, parse_score_query
+        stage = query.get('stage', [None])[0]
         if stage and stage not in STAGES:
             raise ValueError('Unknown pipeline stage.')
+        order, thresholds = parse_score_query(**score_query_params(query))
         store = self.app.pipeline.store
+        store.backfill_scores(campaign_id)
         with tempfile.TemporaryFile(mode='w+b', dir=self.app.data_dir) as handle:
             with store.connection() as conn:
                 conn.execute('BEGIN')
@@ -690,18 +714,23 @@ class StudioHandler(BaseHTTPRequestHandler):
                     else:
                         conditions.append('stage=?')
                         params.append(stage)
+                for column, value in thresholds:
+                    # Unscored rows never pass a score threshold.
+                    conditions.append(column + '>=?')
+                    params.append(value)
                 cursor = conn.execute('''SELECT id,campaign_id,target_id,input_hash,sequence_length,stage,attempt,error,failed_stage,
                     cache_hit,preparation_reuse,preparation_activity,prepare_not_before,prepare_defer_count,
                     created_at,updated_at,prep_seconds,predict_seconds,validate_seconds,result_path,
+                    score_ranking,score_iptm,score_ptm,score_plddt,ranking_metric,
                     json_extract(input_json,'$.name') AS name FROM campaign_items WHERE ''' +
-                    ' AND '.join(conditions) + ' ORDER BY seq', params)
+                    ' AND '.join(conditions) + ' ORDER BY ' + order, params)
                 while rows := cursor.fetchmany(200):
                     for row in rows:
                         item = store._public_item(row, campaign['status'] == 'cancelled')
                         item.pop('resultPath', None)
                         base = f"/api/campaigns/{campaign_id}/items/{item['id']}"
                         item.update(resultDetailUrl=base, structureUrl=base+'/structure' if item['hasResult'] else None)
-                        handle.write((json.dumps(item, ensure_ascii=False, allow_nan=False)+'\n').encode('utf-8'))
+                        handle.write((json.dumps(public_urls(item, self.app.base_path), ensure_ascii=False, allow_nan=False)+'\n').encode('utf-8'))
             size = handle.tell()
             handle.seek(0)
             self._headers(200, 'application/x-ndjson; charset=utf-8', size,
@@ -711,6 +740,13 @@ class StudioHandler(BaseHTTPRequestHandler):
                 shutil.copyfileobj(handle, self.wfile, length=64*1024)
 
     def _dispatch(self):
+        original = urlsplit(self.path)
+        internal = strip_request_target(self.path, self.app.base_path)
+        if self.app.base_path and original.path == self.app.base_path and self.command in {"GET", "HEAD"}:
+            location = self.app.base_path + "/" + ("?" + original.query if original.query else "")
+            self._headers(308, "text/plain", 0, Location=location)
+            return
+        self.path = internal
         if urlsplit(self.path).path.startswith('/worker/'):
             self.app.distributed.handle(self)
             return
@@ -804,7 +840,7 @@ class StudioHandler(BaseHTTPRequestHandler):
                 self.app.pipeline.wakeup.set()
                 return
             if len(parts) == 4 and parts[3] == 'export' and method == 'GET':
-                self._campaign_export(campaign_id, parse_qs(parsed.query).get('stage', [None])[0])
+                self._campaign_export(campaign_id, parse_qs(parsed.query))
                 return
             if len(parts) == 4 and parts[3] == "items":
                 if method == "POST":
@@ -814,7 +850,9 @@ class StudioHandler(BaseHTTPRequestHandler):
                     query = parse_qs(parsed.query)
                     limit = max(1, min(200, int(query.get("limit", ["25"])[0])))
                     offset = max(0, int(query.get("offset", ["0"])[0]))
-                    self._json(200, self.app.pipeline.store.items(campaign_id, limit, offset, query.get("stage", [None])[0]))
+                    score_query = score_query_params(query)
+                    self._json(200, self.app.pipeline.store.items(campaign_id, limit, offset,
+                                query.get("stage", [None])[0], **score_query))
                     return
             if len(parts) in {5, 6} and parts[3] == "items" and method == "GET":
                 item_id = parts[4]

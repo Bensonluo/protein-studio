@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 import sqlite3
 import stat
@@ -87,6 +88,94 @@ def checked_publication(value, row, item_root, result_path, require_identity=Tru
     return normalized
 
 
+SCORE_COLUMNS = {'rankingScore': 'score_ranking', 'iptm': 'score_iptm',
+                 'ptm': 'score_ptm', 'meanPlddt': 'score_plddt'}
+SCORE_SORT_COLUMNS = {'ranking': 'score_ranking', 'iptm': 'score_iptm',
+                      'ptm': 'score_ptm', 'plddt': 'score_plddt'}
+SCORE_THRESHOLDS = {'iptm': (0, 1), 'ptm': (0, 1), 'meanPlddt': (0, 100), 'rankingScore': (-1000, 1000)}
+
+
+def result_scores_from(result):
+    """Extract AF3-style summary scores from a validated result.
+
+    ranking_score orders full complexes (higher is better and may leave the
+    0..1 interval because of penalty terms); ipTM/pTM and mean pLDDT stay on
+    their documented scales. Missing or out-of-range values stay absent.
+    """
+    scores = {}
+    for name, (low, high) in SCORE_THRESHOLDS.items():
+        value = result.get(name)
+        if type(value) in (int, float) and math.isfinite(value) and low <= value <= high:
+            scores[name] = float(value)
+    metric = result.get('rankingMetric')
+    if isinstance(metric, str) and metric and len(metric) <= 64:
+        scores['rankingMetric'] = metric
+    return scores or None
+
+
+def normalize_result_scores(value):
+    """Validate the score block a worker wants to publish into the ledger."""
+    if not isinstance(value, dict) or set(value) - set(SCORE_COLUMNS) - {'rankingMetric'}:
+        raise ValueError('Unknown result score fields.')
+    normalized = {}
+    for name, (low, high) in SCORE_THRESHOLDS.items():
+        if name not in value:
+            continue
+        number = value[name]
+        if type(number) not in (int, float) or not math.isfinite(number) or not low <= number <= high:
+            raise ValueError('Result score outside its documented range: ' + name)
+        normalized[name] = float(number)
+    metric = value.get('rankingMetric')
+    if metric is not None and (not isinstance(metric, str) or not metric or len(metric) > 64):
+        raise ValueError('Result score metric must be a bounded nonempty string.')
+    if metric is not None:
+        normalized['rankingMetric'] = metric
+    return normalized
+
+
+def compact_result_scores(path):
+    """Read one compact published result file and extract its scores."""
+    try:
+        if path.stat().st_size > 4 * 1024 * 1024:
+            return None
+        with path.open('rb') as stream:
+            content = stream.read(4 * 1024 * 1024 + 1)
+        if len(content) > 4 * 1024 * 1024:
+            return None
+        result = json.loads(content)
+        return result_scores_from(result) if isinstance(result, dict) else None
+    except (OSError, ValueError, TypeError):
+        return None
+
+
+def parse_score_query(sort=None, min_ranking=None, min_iptm=None, min_ptm=None, min_plddt=None):
+    """Validate one score sort/threshold query shared by the listing and export.
+
+    Returns (order clause, [(column, threshold)]); unscored rows never pass a
+    threshold and keep insertion order behind every scored row when sorting.
+    """
+    if sort is not None and sort not in SCORE_SORT_COLUMNS:
+        raise ValueError('Unknown result score sort.')
+    order = 'seq'
+    if sort:
+        column = SCORE_SORT_COLUMNS[sort]
+        # Higher is better (AF3 ranking_score convention); unscored rows keep
+        # insertion order behind every scored row instead of interleaving.
+        order = f'({column} IS NULL),{column} DESC,seq'
+    names = {'score_ranking': 'rankingScore', 'score_iptm': 'iptm',
+             'score_ptm': 'ptm', 'score_plddt': 'meanPlddt'}
+    thresholds = []
+    for column, value in (('score_ranking', min_ranking), ('score_iptm', min_iptm),
+                          ('score_ptm', min_ptm), ('score_plddt', min_plddt)):
+        if value is None:
+            continue
+        low, high = SCORE_THRESHOLDS[names[column]]
+        if type(value) not in (int, float) or not math.isfinite(value) or not low <= value <= high:
+            raise ValueError('Result score threshold outside its documented range: ' + column)
+        thresholds.append((column, float(value)))
+    return order, thresholds
+
+
 class CampaignStore:
     def __init__(self, path):
         self.path = Path(path)
@@ -136,9 +225,15 @@ class CampaignStore:
                 if column not in columns:
                     conn.execute('ALTER TABLE campaign_items ADD COLUMN ' + column + ' TEXT')
             for column, declaration in (('prepare_not_before', 'REAL NOT NULL DEFAULT 0'),
-                                        ('prepare_defer_count', 'INTEGER NOT NULL DEFAULT 0')):
+                                        ('prepare_defer_count', 'INTEGER NOT NULL DEFAULT 0'),
+                                        ('score_checked', 'INTEGER NOT NULL DEFAULT 0')):
                 if column not in columns:
                     conn.execute('ALTER TABLE campaign_items ADD COLUMN ' + column + ' ' + declaration)
+            for column in ('score_ranking', 'score_iptm', 'score_ptm', 'score_plddt'):
+                if column not in columns:
+                    conn.execute('ALTER TABLE campaign_items ADD COLUMN ' + column + ' REAL')
+            if 'ranking_metric' not in columns:
+                conn.execute('ALTER TABLE campaign_items ADD COLUMN ranking_metric TEXT')
             conn.execute('CREATE INDEX IF NOT EXISTS campaign_cache_reference ON campaign_items(prepared_cache_key) WHERE prepared_cache_key IS NOT NULL')
 
     @contextmanager
@@ -197,6 +292,18 @@ class CampaignStore:
             reuse = conn.execute('SELECT COUNT(*) AS targets,' + aggregates +
                                  ' FROM campaign_items WHERE campaign_id=? AND preparation_reuse IS NOT NULL',
                                  (campaign_id,)).fetchone()
+            scored = conn.execute('''SELECT SUM((score_ranking IS NOT NULL)+(score_iptm IS NOT NULL)
+                +(score_ptm IS NOT NULL)+(score_plddt IS NOT NULL)>0) AS scored,
+                SUM(score_iptm IS NOT NULL) AS iptm,
+                SUM(score_iptm>=0.8) AS iptm_high,
+                SUM(score_iptm>=0.6 AND score_iptm<0.8) AS iptm_gray,
+                SUM(score_iptm<0.6) AS iptm_low,
+                SUM(score_plddt>=90) AS plddt_very_high,
+                SUM(score_plddt>=70 AND score_plddt<90) AS plddt_confident,
+                SUM(score_plddt>=50 AND score_plddt<70) AS plddt_low,
+                SUM(score_plddt<50) AS plddt_very_low
+                FROM campaign_items
+                WHERE campaign_id=? AND stage='completed' ''', (campaign_id,)).fetchone()
             activity_counts = {'searching': 0, 'waitingShared': 0, 'assembling': 0}
             if row['status'] != 'cancelled':
                 for activity in conn.execute("SELECT json_extract(preparation_activity,'$.state') AS state,COUNT(*) AS n FROM campaign_items WHERE campaign_id=? AND stage IN ('preparing','waiting_input') AND preparation_activity IS NOT NULL GROUP BY state", (campaign_id,)):
@@ -217,6 +324,18 @@ class CampaignStore:
                                    'predictionSeconds': metrics['predict'] or 0,
                                    'validationSeconds': metrics['validate'] or 0,
                                    'cacheHits': metrics['hits'] or 0,
+                                   'scoredTargets': scored['scored'] or 0,
+                                   'iptmScoredTargets': scored['iptm'] or 0,
+                                   # AF DB pLDDT categories (>=90/70-90/50-70/<50) and EBI
+                                   # interface ipTM bands (>=0.8/0.6-0.8/<0.6); unscored
+                                   # completed rows are outside every band.
+                                   'scoreBands': {'iptm': {'high': scored['iptm_high'] or 0,
+                                                           'gray': scored['iptm_gray'] or 0,
+                                                           'low': scored['iptm_low'] or 0},
+                                                  'plddt': {'veryHigh': scored['plddt_very_high'] or 0,
+                                                            'confident': scored['plddt_confident'] or 0,
+                                                            'low': scored['plddt_low'] or 0,
+                                                            'veryLow': scored['plddt_very_low'] or 0}},
                                    'preparationReuse': dict(reuse)})
             return result
 
@@ -288,6 +407,13 @@ class CampaignStore:
                 'timings': {'preparationSeconds': row['prep_seconds'], 'predictionSeconds': row['predict_seconds'],
                             'validationSeconds': row['validate_seconds']},
                 'hasResult': bool(row['result_path']), 'resultPath': row['result_path']}
+        if 'score_ranking' in row.keys():
+            scores = {'rankingScore': row['score_ranking'], 'iptm': row['score_iptm'],
+                      'ptm': row['score_ptm'], 'meanPlddt': row['score_plddt']}
+            if any(value is not None for value in scores.values()):
+                if row['ranking_metric']:
+                    scores['rankingMetric'] = row['ranking_metric']
+                result['resultScores'] = scores
         if not cancelled and 'preparation_activity' in row.keys() and row['preparation_activity']:
             result['preparationProgress'] = json.loads(row['preparation_activity'])
         if 'preparation_reuse' in row.keys() and row['preparation_reuse']:
@@ -300,7 +426,9 @@ class CampaignStore:
                                         for entry in reuse.get('entries', [])]
         return result
 
-    def items(self, campaign_id, limit=25, offset=0, stage=None):
+    def items(self, campaign_id, limit=25, offset=0, stage=None, sort=None,
+              min_ranking=None, min_iptm=None, min_ptm=None, min_plddt=None):
+        order, thresholds = parse_score_query(sort, min_ranking, min_iptm, min_ptm, min_plddt)
         with self.connection() as conn:
             campaign = conn.execute('SELECT status FROM campaigns WHERE id=?', (campaign_id,)).fetchone()
             if campaign is None:
@@ -316,16 +444,83 @@ class CampaignStore:
                 else:
                     conditions.append('stage=?')
                     params.append(stage)
+            for column, value in thresholds:
+                # Unscored rows never pass a score threshold.
+                conditions.append(column + '>=?')
+                params.append(value)
             where = ' AND '.join(conditions)
             total = conn.execute('SELECT COUNT(*) FROM campaign_items WHERE ' + where, params).fetchone()[0]
             # Do not select input_json on the list route: only a page of metadata.
             rows = conn.execute('''SELECT id,campaign_id,target_id,input_hash,sequence_length,stage,attempt,error,failed_stage,
                 cache_hit,preparation_reuse,preparation_activity,created_at,updated_at,prep_seconds,predict_seconds,validate_seconds,result_path,
+                score_ranking,score_iptm,score_ptm,score_plddt,ranking_metric,score_checked,
                 json_extract(input_json,'$.name') AS name
-                FROM campaign_items WHERE ''' + where + ' ORDER BY seq LIMIT ? OFFSET ?', (*params, limit, offset))
+                FROM campaign_items WHERE ''' + where + ' ORDER BY ' + order + ' LIMIT ? OFFSET ?', (*params, limit, offset))
+            rows = [self._backfill_scores(campaign_id, row, conn) for row in rows]
             items = [self._public_item(row, campaign['status'] == 'cancelled') for row in rows]
             return {'items': items, 'total': total, 'limit': limit, 'offset': offset,
                     'nextOffset': offset + len(items) if offset + len(items) < total else None}
+
+    def _backfill_scores(self, campaign_id, row, conn):
+        """Score one legacy completed page item from its compact result, once.
+
+        New completions publish scores with the result; rows completed before
+        that keep their immutable result file and are enriched lazily, one
+        bounded page at a time, instead of a bulk migration.
+        """
+        if row['stage'] != 'completed' or not row['result_path'] or row['score_checked']:
+            return row
+        root = (self.path.parent / 'campaigns' / campaign_id / row['id']).resolve()
+        scores = None
+        try:
+            candidate = Path(row['result_path']).resolve()
+            if candidate.is_relative_to(root) and candidate.is_file():
+                scores = compact_result_scores(candidate)
+        except (OSError, ValueError):
+            scores = None
+        values = [scores.get(name) if scores else None for name in SCORE_COLUMNS]
+        metric = scores.get('rankingMetric') if scores else None
+        cursor = conn.execute('''UPDATE campaign_items SET score_ranking=?,score_iptm=?,score_ptm=?,score_plddt=?,
+            ranking_metric=?,score_checked=1 WHERE id=? AND score_checked=0''', (*values, metric, row['id']))
+        if not cursor.rowcount:
+            return row
+        patched = dict(row)
+        for name, column in SCORE_COLUMNS.items():
+            patched[column] = scores.get(name) if scores else None
+        patched['ranking_metric'] = metric
+        patched['score_checked'] = 1
+        return patched
+
+    def backfill_scores(self, campaign_id, page_size=200):
+        """Drive the lazy legacy score backfill to completion in bounded pages.
+
+        Listing backfills one 25-row page per view; export drives every legacy
+        row through the same write-once check so a snapshot exports scores.
+        Keyset paging on seq keeps each page a forward scan; a clean campaign
+        exits after one cheap count query. Returns rows visited.
+        """
+        visited = 0
+        last_seq = 0
+        while True:
+            with self.connection() as conn:
+                pending = conn.execute(
+                    "SELECT COUNT(*) FROM campaign_items WHERE campaign_id=? AND stage='completed'"
+                    ' AND result_path IS NOT NULL AND score_checked=0', (campaign_id,)).fetchone()[0]
+                if not pending:
+                    return visited
+                rows = conn.execute('''SELECT id,seq,stage,result_path,score_ranking,score_iptm,
+                    score_ptm,score_plddt,ranking_metric,score_checked FROM campaign_items
+                    WHERE campaign_id=? AND stage='completed' AND result_path IS NOT NULL
+                    AND score_checked=0 AND seq>? ORDER BY seq LIMIT ?''',
+                    (campaign_id, last_seq, page_size)).fetchall()
+                for row in rows:
+                    self._backfill_scores(campaign_id, row, conn)
+            if not rows:
+                return visited
+            visited += len(rows)
+            last_seq = rows[-1]['seq']
+            if len(rows) < page_size:
+                return visited
 
     def item(self, campaign_id, item_id, internal=False):
         with self.connection() as conn:
@@ -394,7 +589,8 @@ class CampaignStore:
                 stage=CASE WHEN (failed_stage IS NULL OR failed_stage IN ('predicting','validating'))
                     AND prepared_usable(prepared_path,id)=1 THEN 'ready' ELSE 'waiting_input' END,
                 token=NULL,lease_until=NULL,started=NULL,remote_owner=NULL,batch_id=NULL,attempt=attempt+1,error=NULL,failed_stage=NULL,
-                candidate_path=NULL,result_path=NULL,result_publication=NULL,prepare_not_before=0,preparation_activity=NULL,updated_at=?
+                candidate_path=NULL,result_path=NULL,result_publication=NULL,score_ranking=NULL,score_iptm=NULL,
+                score_ptm=NULL,score_plddt=NULL,ranking_metric=NULL,score_checked=0,prepare_not_before=0,preparation_activity=NULL,updated_at=?
                 WHERE campaign_id=? AND stage='failed' ''', (utcnow(), campaign_id))
             retried = result.rowcount
             conn.execute('UPDATE campaigns SET updated_at=? WHERE id=?', (utcnow(), campaign_id))
@@ -516,7 +712,8 @@ class CampaignStore:
             return True
 
     def advance(self, item_id, token, target, prepared_path=None, candidate_path=None, result_path=None,
-                error=None, cache_hit=False, now=None, preparation_reuse=None, preparation_cache_key=None, result_publication=None):
+                error=None, cache_hit=False, now=None, preparation_reuse=None, preparation_cache_key=None,
+                result_publication=None, result_scores=None):
         now = time.time() if now is None else now
         with self.connection(True) as conn:
             row = self._authorized(conn, item_id, token, now)
@@ -532,6 +729,10 @@ class CampaignStore:
                     raise ValueError('Result publication is allowed only with completed output.')
                 item_root = self.path.parent.resolve()/'campaigns'/row['campaign_id']/row['id']
                 publication_json = encode(checked_publication(result_publication, row, item_root, result_path, require_identity=False))
+            if result_scores is not None:
+                if target != 'completed' or row['stage'] != 'validating' or not result_path:
+                    raise ValueError('Result scores are allowed only with completed output.')
+                result_scores = normalize_result_scores(result_scores)
             if preparation_cache_key is not None:
                 if (row['stage'] != 'preparing' or target != 'ready'
                     or not isinstance(preparation_cache_key, str)
@@ -560,11 +761,20 @@ class CampaignStore:
             durations = {'preparing': 'prep_seconds', 'predicting': 'predict_seconds', 'validating': 'validate_seconds'}
             field = durations[row['stage']]
             elapsed = max(0, now - (row['started'] or now))
+            scores = result_scores or {}
             conn.execute('''UPDATE campaign_items SET stage=?,token=NULL,lease_until=NULL,started=NULL,remote_owner=NULL,batch_id=NULL,
                 prepared_path=COALESCE(?,prepared_path),candidate_path=COALESCE(?,candidate_path),
-                result_path=COALESCE(?,result_path),result_publication=?,prepared_cache_key=COALESCE(?,prepared_cache_key),preparation_reuse=COALESCE(?,preparation_reuse),error=?,failed_stage=?,cache_hit=MAX(cache_hit,?),updated_at=?,''' + field + '=' + field + '+? WHERE id=? AND token=?',
-                         (target, prepared_path, candidate_path, result_path, publication_json, preparation_cache_key, reuse_json, error,
-                          row['stage'] if target == 'failed' else None, int(cache_hit), utcnow(), elapsed, item_id, token))
+                result_path=COALESCE(?,result_path),result_publication=?,prepared_cache_key=COALESCE(?,prepared_cache_key),preparation_reuse=COALESCE(?,preparation_reuse),
+                score_ranking=COALESCE(?,score_ranking),score_iptm=COALESCE(?,score_iptm),score_ptm=COALESCE(?,score_ptm),
+                score_plddt=COALESCE(?,score_plddt),ranking_metric=COALESCE(?,ranking_metric),
+                error=?,failed_stage=?,cache_hit=MAX(cache_hit,?),updated_at=?,''' + field + '=' + field + '+? WHERE id=? AND token=?',
+                         (target, prepared_path, candidate_path, result_path, publication_json, preparation_cache_key, reuse_json,
+                          scores.get('rankingScore'), scores.get('iptm'), scores.get('ptm'),
+                          scores.get('meanPlddt'), scores.get('rankingMetric'),
+                          error, row['stage'] if target == 'failed' else None, int(cache_hit), utcnow(), elapsed, item_id, token))
+            if target == 'completed':
+                # Fresh completions never fall into the lazy legacy backfill.
+                conn.execute('UPDATE campaign_items SET score_checked=1 WHERE id=?', (item_id,))
             if target == 'ready' and row['stage'] == 'preparing':
                 activity = encode({'state': 'prepared', 'updatedAt': utcnow(), 'deferCount': row['prepare_defer_count']})
                 conn.execute('UPDATE campaign_items SET prepare_progress=NULL,prepare_not_before=0,preparation_activity=? WHERE id=?', (activity, item_id))

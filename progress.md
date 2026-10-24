@@ -45,3 +45,37 @@
 ## 2026-10-23 前端体验迭代
 
 完成13组前端问题修复，包含科学着色P1（独立pLDDT不再读B因子）、引擎参数草稿、常驻批次引导、筛选/详情响应乱序、成功提交与刷新失败分离、导出当前筛选、重连状态、缓存分页和键盘焦点。新专项38项与已有66项通过，语法检查通过。旧screening夹具未接profile参数、旧inspector在旧prepare入口注入失败，均修正后保持原断言通过。初次只读测试使用waitForSelector(hidden)默认visible，调整为attached后通过。详见docs/frontend-ux-review.md。
+
+## 2026-10-23 腾讯云与个人网站交付
+
+工作台部署到https://benluo.art/foldspace/，独立public-demo Docker volume，仅公开样例只读。补base path、ijson容器依赖、HTTPS origin门禁与worker路径兼容。原Nginx和portfolio镜像有回退副本。portfolio-fe新增中英featured项目、工程展示、两图切换与已核实public GitHub链接，静态构建发布。14项新增/专项后端、现有API/PAE27和worker10通过；公网工作台4组、portfolio5组通过，原RAG/stock仍200。portfolio原工作区修改未重置或批量提交。细节与回退在deploy/PUBLIC_DEMO.md。
+
+## 2026-10-24 置信度评分排序迭代
+
+业界口径核对后实现批次级置信度筛选：AF3 官方 ranking_score 排序、EBI ipTM 分带（≥0.8/0.6–0.8）与平均 pLDDT（0–100）。SQLite 账本新增 score_* 列与 score_checked 写一次标记，唯一完成路径交付时提取分数；旧数据惰性回填走有界 4MiB compact result 读取，CAS 防并发重复；retry_failed 清陈旧分数。items API 增排序（降序、NULL 最后）与阈值筛选，非法 sort/越界阈值 400。前端批次表格新增置信度列（ranking 加粗、ipTM/pTM/pLDDT 详情、EBI 分带徽标）、排序下拉与条件性 ipTM 阈值快捷筛选（iptmScoredTargets>0 才显示），焦点恢复覆盖新控件。
+
+验收：新增后端 8 项（提取/校验/回填/HTTP 400/SQL 注入陈旧清除）通过；全后端 320 发现 OK（1 按需 skip）；根 tests 67/67；campaign_client 通过；分数浏览器契约 6/6 与既有 browser_campaign 9/9 回归通过。参考回放不含 ipTM：浏览器以 pLDDT 排序验证 UI 契约与 API↔DOM 一致，ipTM 徽标不出现的分支由 metrics 驱动断言覆盖。截图归档 artifacts/campaign-scores.png，模型级目检因工具超时跳过（DOM 断言已覆盖）。排序/阈值实现为元数据级，不代表 GPU 预测吞吐。演示服务（8973）验收后已停止；主服务 8765 未动；无部署。
+
+## 2026-10-24 筛选导出携带分数迭代
+
+按 ColabFold（ranking_debug.txt/scores.json）与 Boltz（confidence.json）等业界导出惯例，补齐 export JSONL 的置信度分数：items 与 export 共享 parse_score_query 校验（同一排序/阈值/400 口径）；新增 backfill_scores 分页回填（seq keyset、干净账本早退、短事务），导出快照前驱动 legacy 行一次性补分；export 行内 resultScores，支持导出筛选子集。前端已交付导出链接携带当前 sort/min_iptm，所见即所得；提示文案与 README 更新。
+
+验收：test_campaign_scores 10 项通过（新增分页回填与导出路由含 legacy 补分/排序/阈值/400 共 2 项）；全后端 322 发现 OK（1 按需 skip，73.944s）；根 tests 67/67；campaign_client 通过；分数浏览器契约 8/8（新增 JSONL 导出顺序与 resultScores、WYSIWYG 链接两项）、browser_campaign 回归 9/9。导出依旧不聚合坐标/PAE，保持一致元数据快照；演示服务 8973 验收后停止；主服务未动，无部署。
+
+## 2026-10-24 置信度分带汇总迭代
+
+按 AF DB pLDDT 四带（≥90/70–90/50–70/<50）与 EBI ipTM 三带口径，批次面板新增已交付目标置信度分布：get() 的 scored 聚合单查询扩展条件计数输出 metrics.scoreBands（未评分交付项不属于任何带，NULL 自然排除）；前端分布行复用分带徽标，无数据段隐藏，tooltip 标注口径与 legacy 行在首次列出/导出后才计入的边界。README 批次管线段同步。
+
+验收：test_campaign_scores 11 项通过（新增分带计数）；全后端 323 发现 OK（1 按需 skip，72.09s）；根 tests 67/67；campaign_client 通过；分数浏览器契约 9/9（新增分布行与账本一致 + 无 ipTM 隐藏段）、browser_campaign 回归 9/9。分带为 SQLite 账本聚合，不代表模型吞吐。演示服务 8973 验收后停止；主服务未动，无部署。
+
+## 2026-10-24 目标详情置信度评分迭代
+
+按 AF3 Server 结果页惯例（ranking_score 源自 ipTM/pTM、EBI 阈值分带）补齐目标检查器的置信度评分区：排名分加粗并副注排名口径，ipTM/pTM/平均 pLDDT 附 EBI 三带与 AF DB 四带徽标及术语 tooltip，明示分数为预测置信元数据而非实验精度。后端零改动（详情 API 已含 resultScores），补 store.item 断言；浏览器契约新增打开检查器验证评分区。
+
+验收：test_campaign_scores 11 项通过；全后端 323 发现 OK（1 按需 skip，73.893s）；根 tests 67/67；campaign_client 通过；分数浏览器契约 10/10、browser_campaign 回归 9/9。演示服务 8973 验收后停止；主服务未动，无部署。
+
+## 2026-10-24 置信度分布条迭代
+
+按 dataviz skill 流程为批次面板新增 ipTM/pLDDT 100% 堆叠分布条：先用 validate_palette 实测发现原分带徽标配色不合格（琥珀/橙 ΔE 6.6），换验证通过的有序色板（绿 #2f7d4f/金 #cfaa2d/橙 #d96820/深红 #9c3226），徽标本身维持原配色；段宽按带计数、2px 表面间隙、外端圆角、逐段 tooltip 与 aria-label，图例行带 swatch+标签+计数（identity 不靠色 alone，金色对比度 WARN 由图例文字 relief）。后端零改动，复用迭代三 scoreBands。
+
+验收：分数浏览器契约 11/11（新增分布条段与图例同步检查）、browser_campaign 回归 9/9、根 tests 67/67、campaign_client 通过、全后端 323 发现 OK（1 按需 skip，72.393s）。分布为 SQLite 账本聚合。截图归档；模型级目检工具本地文件不支持，几何与同步由 DOM 断言覆盖。演示服务 8973 验收后停止；主服务未动，无部署。

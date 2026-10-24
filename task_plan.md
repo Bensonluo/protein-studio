@@ -121,3 +121,63 @@
 2. [完成] 13组问题修复：草稿/路由/请求一致性/动作反馈/置信度/重连/队列/翻页/焦点与窄屏。
 3. [完成] 新专项38项、既有66项回归；主应用只读，5批次2任务保留；部署继续搁置。
 4. [完成] 检查报告与证据归档：docs/frontend-ux-review.md。
+
+## 2026-10-23 腾讯云公开部署与个人网站整合
+
+1. [完成] 定位portfolio-fe及现有腾讯云ubuntu@101.43.97.91、benluo.art HTTPS代理。
+2. [完成] 可选/foldspace前缀、干净公开只读数据初始化、容器依赖和内存限制。
+3. [完成] 腾讯云独立部署，健康/结构/PAE/只读门禁验收。
+4. [完成] portfolio中英项目、预览与线上入口，构建/浏览验证后上线；保留已有未提交改动。
+
+## 2026-10-24 持续迭代：批次置信度评分排序与筛选
+
+上轮已明确"下一轮优先检查大批候选的科学评分筛选/排序，避免逐个打开详情找优选"。本轮先核对业界口径：AF3 官方 ranking_score（越高越好，ranked by 官方口径）、AF-Multimer 0.8·ipTM+0.2·pTM、EBI ipTM ≥0.8 高置信 / 0.6–0.8 灰区 / <0.6 可能失败、平均 pLDDT 0–100（官方 output 文档 + EBI 培训 + ColabFold issue 两个独立来源确认）。
+
+1. [完成] 账本 score_* 列（ranking/iptm/ptm/plddt + ranking_metric + score_checked）与迁移；交付时在唯一完成路径提取分数写入。
+2. [完成] 旧数据惰性一次性回填：有界 4MiB 读取 compact result，CAS 防重复；retry_failed 清除陈旧分数。
+3. [完成] items API `sort=ranking/iptm/ptm/plddt` 降序（NULL 最后）与 `min_*` 阈值白名单校验；export 契约不变。
+4. [完成] 批次页"置信度"列：ranking 加粗 + ipTM/pTM/pLDDT 详情 + EBI 分带徽标；排序下拉与 ipTM 阈值快捷筛选（仅有分数时出现）；浏览器契约验证。
+
+本轮：新增后端 test_campaign_scores 8 项通过；全后端 320 发现 OK（1 按需 skip，73.1s）；根 tests 67/67；客户端 campaign_client 通过；分数浏览器契约 6/6、回归 browser_campaign 9/9（campaign f25c8d490322492d9d51e7c847904240，artifacts/campaign-scores-verification.json + 截图）。参考回放口径如实标注：无 ipTM，浏览器验证 pLDDT 排序与 API↔DOM 一致；ranking 与 pLDDT 顺序一致为回放口径巧合不作依据。截图模型级目检因工具超时跳过，DOM 断言已覆盖契约。无 GPU/云部署；演示服务用后即停。下一轮候选：export JSONL 带分数、分带统计汇总。
+
+## 2026-10-24 持续迭代：筛选结果导出携带置信度分数
+
+上轮遗留候选落地。先核对业界惯例（ColabFold batch 的 ranking_debug.txt/scores.json、Boltz 的 confidence.json、AF3 Server ranking_score，两个独立来源）：批量结果的机器可读导出必须携带置信度分数，筛选工作流要能导出选中的子集。当前 export JSONL 只有 metadata 与结构链接，不带分数。
+
+1. [完成] campaigns.py 抽出 parse_score_query 共享校验，items 与 export 同一排序/阈值口径（含非法输入 400）。
+2. [完成] backfill_scores 分页回填：seq keyset 前向扫描、干净账本单次计数即出、每页独立短事务；导出快照前驱动 legacy 行写一次补分。
+3. [完成] export SELECT 增 score_* 列，行内带 resultScores；支持 sort/min_* 导出筛选后的子集，快照一致性契约不变。
+4. [完成] 前端已交付导出链接跟随当前排序与阈值（所见即所得），提示文案标注分数与跟随行为；README 接口行更新。
+
+本轮：后端 test_campaign_scores 增 2 项（分页回填、导出路由排序/筛选/legacy 回填/400）共 10 项通过；全后端 322 发现 OK（1 按需 skip，73.9s）；根 tests 67/67；客户端通过；分数浏览器契约 8/8（新增导出顺序一致 + resultScores + WYSIWYG 链接检查，campaign 5aeee499b0b94cf584b39294311d63a7）、browser_campaign 回归 9/9。导出仍为元数据级一致快照，不含坐标/PAE；参考回放口径同前。演示服务 8973 用后即停。下一轮候选：批次分带统计汇总（高置信/灰区/低置信计数）或目标详情分数趋势对比。
+
+## 2026-10-24 持续迭代：批次置信度分带汇总
+
+上轮候选落地。先核对分带口径（EBI AlphaFold 培训 + AlphaFold DB FAQ 独立两源）：pLDDT 四带 ≥90 很高 / 70–90 置信 / 50–70 低 / <50 很低（AF DB 默认着色带），ipTM 沿用 EBI 界面三带 ≥0.8 / 0.6–0.8 / <0.6。筛选场景需要批次级一眼可见的分布，而不是逐项打开。
+
+1. [完成] get() 分带聚合并入既有 scored 计数单条查询（SUM 条件计数，NULL 自然排除），metrics 增 scoreBands（ipTM 三带 + pLDDT 四带）。
+2. [完成] 前端批次面板交付进度条下新增"置信度分布"行：复用分带徽标配色，无分数段自动隐藏；tooltip 标注口径与 legacy 行"首次列出/导出后计入"的边界。
+3. [完成] 后端分带计数测试 + 浏览器分布行一致性检查（含无 ipTM 时隐藏该段）。
+4. [完成] README 批次管线能力段补分带汇总、排序筛选与跟随筛选导出描述。
+
+本轮：test_campaign_scores 11 项通过（+1 分带）；全后端 323 发现 OK（1 按需 skip，72.1s）；根 tests 67/67；客户端通过；分数浏览器契约 9/9（+1 分布行，campaign 632f13fa4bbb44daa771a55c3df01741）、browser_campaign 回归 9/9。分带为账本聚合，不代表 GPU 吞吐；未评分交付项不属于任何带。演示服务用后即停。下一轮候选：目标详情页置信度分数与逐残基曲线联动摘要，或批次跨样本分数对比视图。
+
+## 2026-10-24 持续迭代：目标详情置信度评分区
+
+上轮候选落地。核对 AF3 Server 结果页惯例（EBI 培训"Interpreting results from AlphaFold Server"+ alphafoldserver.com 两源）：结果页以 ranking_score（源自 ipTM/pTM）排名，ipTM>0.8 高置信、0.6–0.8 灰区，配合 PAE 深查。详情 API 已带 resultScores（迭代 #1 的 _public_item），但检查器面板未渲染——列表有分、详情无分的断点。
+
+1. [完成] renderCampaignInspectScores：排名分（加粗、rankingMetric 口径副注）+ ipTM/pTM/平均 pLDDT，EBI ipTM 三带与 AF DB pLDDT 四带徽标，术语 tooltip 标注口径与"预测置信元数据，不代表实验测定精度"。
+2. [完成] 检查器动作区后插入评分区，无分数目标不渲染该段；CSS 复用 facts 布局与分带徽标配色。
+3. [完成] 后端 detail 断言补强（store.item 含 resultScores）；浏览器契约新增打开检查器断言评分区存在；README 目标检查描述更新。
+
+本轮：test_campaign_scores 11 项通过；全后端 323 发现 OK（1 按需 skip，73.9s）；根 tests 67/67；客户端通过；分数浏览器契约 10/10（+1 检查器评分区）、browser_campaign 回归 9/9。纯前端渲染 + 既有 API，无后端行为变更；参考回放口径同前。演示服务用后即停。下一轮候选：跨样本/跨候选分数对比视图，或批次交付物对比页。
+
+## 2026-10-24 持续迭代：置信度分布条
+
+上轮候选落地。依据：CASP Prediction Center 用动态图评估预测、模型集分数分布直方图是筛选惯例（Eramian 2006 等）、AF pLDDT 四带着色为公认口径。分布条让"从分布选阈值"一眼可做。按 dataviz skill 全流程执行：形式选择 → 配色按职能分配 → 验证器实测 → mark 规格 → 图例与可达性。
+
+1. [完成] 原分带徽标配色跑 validate_palette 实测不合格（琥珀/橙 ΔE 6.6，正常视觉都难分）——改验证通过的有序色板绿/金/橙/深红（亮度带、彩度地板、CVD、正常地板全过；金色对比度 WARN 由图例文字计数 relief），产品徽标保持原配色不变。
+2. [完成] ipTM / pLDDT 各一条 100% 堆叠分布条：段宽按带计数、2px 表面间隙、外端圆角、逐段 title tooltip、aria-label 汇总；带色板 swatch + 标签 + 计数图例行，identity 不靠色 alone。
+3. [完成] 浏览器契约 +1：分布条段数与图例 swatch 数同步断言；README 分带描述补分布条。
+
+本轮：分数浏览器契约 11/11（+1 分布条同步）、browser_campaign 回归 9/9、根 tests 67/67、客户端通过、全后端 323 发现 OK（1 按需 skip，72.4s；本轮纯前端）。分布为账本聚合非 GPU 吞吐；截图归档 artifacts/campaign-scores.png，模型级目检工具不可用（本地文件不支持），几何/同步由 DOM 断言覆盖。演示服务用后即停。下一轮候选：PAE 快照进入批次交付物、或跨批次（campaigns 列表）汇总。

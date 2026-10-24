@@ -2,6 +2,10 @@
 
 把序列提交、真实预测进程、结构与置信度解析、三维探索和结果交付连接起来的本地应用。参考 AlphaFold2 / AlphaFold3 的实际数据流程，接入 ColabFold，并采用 3Dmol.js 展示真实分子坐标。
 
+[腾讯云公开演示](https://benluo.art/foldspace/) · [作品集介绍](https://benluo.art/projects/protein-studio/)
+
+公开演示使用独立的已发布结构样例，支持三维、PAE 和批次结果浏览；部署与访问方式见 [公开展示部署说明](deploy/PUBLIC_DEMO.md)。
+
 ![工作台预览](artifacts/studio-desktop.png)
 
 ## 启动
@@ -40,7 +44,7 @@ PROTEIN_STUDIO_PYTHON=/path/to/python3.12 ./start.sh
 
 ## 大批次与搜索数据库
 
-左侧 **批次管线** 接收多记录 FASTA 或多链 JSONL，浏览器流式读取文件、每 100 项写入一次。任务经过独立的 CPU 准备池、就绪缓冲、预测执行池和结果验证池；清单总量与就绪缓冲水位分别控制。支持阶段计数、25 项分页、暂停、继续、取消、仅重试失败项、逐项三维结果，以及导入中断后的幂等重传。固定靶标筛选模式将每条候选与同一组固定链组合，预览前两项后按块上传；刷新后的续传会核对固定靶标指纹。
+左侧 **批次管线** 接收多记录 FASTA 或多链 JSONL，浏览器流式读取文件、每 100 项写入一次。任务经过独立的 CPU 准备池、就绪缓冲、预测执行池和结果验证池；清单总量与就绪缓冲水位分别控制。支持阶段计数、25 项分页、暂停、继续、取消、仅重试失败项、逐项三维结果，以及导入中断后的幂等重传；已交付目标按 AF DB pLDDT 四带与 EBI ipTM 阈值给出置信度分带汇总与分布条，列表支持排名分/ipTM/pTM/pLDDT 排序与阈值筛选，导出跟随当前筛选。固定靶标筛选模式将每条候选与同一组固定链组合，预览前两项后按块上传；刷新后的续传会核对固定靶标指纹。
 
 左侧 **序列与模板库** 显示管理员注册的本地数据库资产、版本和必要索引的预检状态。搜索进程直接读取挂载路径，不通过网页查询一个远程 SQL 序列库。示例路径没有安装真实数据库，会如实显示缺失。
 
@@ -79,7 +83,7 @@ python3 scripts/start_hybrid_demo.py \
 
 **混合云执行**提供状态驱动的本地/云端拓扑、16卡规划格、全局阶段计数、可路由准备缓冲、按位置的领取条件与近五分钟交付/失败/恢复统计。动画随实际执行状态启停，卡位计划与节点上报设备分别显示。点击执行池筛选节点，点击批次展开其成员，再进入目标详情。
 
-**批次管线**中所有阶段的目标都能检查：事件、失败阶段、阶段累计时间、准备缓存、输入指纹、执行节点/常驻PID及近期租约记录。已完成目标可直接进入三维视图；全部、已交付与失败项均可下载为一个JSONL清单。导出只取metadata与结构链接，以每次200行写临时文件形成一致快照，结束数据库读事务后再发送给浏览器，不聚合整个批次的PAE或坐标。
+**批次管线**中所有阶段的目标都能检查：事件、失败阶段、阶段累计时间、准备缓存、输入指纹、执行节点/常驻PID及近期租约记录；已交付目标详情含 AF3 排名分与 EBI/AF DB 口径分带的置信度评分。已完成目标可直接进入三维视图；全部、已交付与失败项均可下载为一个JSONL清单。导出只取metadata与结构链接，以每次200行写临时文件形成一致快照，结束数据库读事务后再发送给浏览器，不聚合整个批次的PAE或坐标。
 
 AF3 的链复用统计单列新增链搜索、链缓存命中与整目标命中。单个目标详情可展开所用链 ID、序列 SHA 与缓存身份；整目标命中时明确标注本次没有查询链缓存。固定靶标 × N 个不同候选，理想冷缓存需要 N+1 个独立链搜索身份，仍执行 N 次完整复合物推理。这是官方支持的准备复用机制，不能直接换算为 GPU 加速百分比。完整机制、配对语义、适用输入与验证见[链级复用专题](docs/chain-reuse-design.md)。
 
@@ -122,9 +126,9 @@ curl -X POST http://127.0.0.1:8765/api/jobs \
 | `GET /api/health`、`GET /api/system` | 服务、引擎与本机 GPU 检测 |
 | `GET /api/databases`、`GET /api/pipeline/config` | 数据库预检、阶段并发与引擎能力 |
 | `GET /api/cluster` | 全局pipeline态势、规划资源、实际节点、resident批次、哈希传输与恢复事件 |
-| `GET /api/campaigns/{id}/export?stage=...` | 一致快照JSONL下载；可选按阶段筛选，包含metadata与结构URL |
+| `GET /api/campaigns/{id}/export?stage=...` | 一致快照JSONL下载；可选按阶段筛选，行内含置信度分数；支持与目标列表相同的 `sort=ranking/iptm/ptm/plddt` 与 `min_*` 阈值，导出筛选后的子集 |
 | `POST /api/campaigns`、`GET /api/campaigns` | 创建 / 查看批次 |
-| `POST /api/campaigns/{id}/items`、`GET /api/campaigns/{id}/items` | 逐块入库、按阶段分页 |
+| `POST /api/campaigns/{id}/items`、`GET /api/campaigns/{id}/items` | 逐块入库、按阶段分页；`sort=ranking/iptm/ptm/plddt` 置信度降序，`min_iptm/min_ptm/min_plddt/min_ranking` 阈值筛选 |
 | `POST /api/campaigns/{id}/seal`、`pause`、`resume`、`cancel` | 封存输入清单与控制执行 |
 | `POST /api/campaigns/{id}/retry-failed` | 仅重新排队失败目标，保留已完成项 |
 | `GET /api/storage`、`/entries`、`/plans/{id}` | 已有缓存目录清单、操作状态与具体预览；不启动目录扫描 |
