@@ -8,3 +8,5 @@ data
 *.log
 tests
 config/*.local.json
+.omc
+artifacts

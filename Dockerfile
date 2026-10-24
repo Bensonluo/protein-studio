@@ -14,7 +14,9 @@ RUN groupadd --gid 10001 studio \
 
 WORKDIR /app
 COPY requirements.txt ./requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+# Tencent Cloud builds pull from the Aliyun PyPI mirror; the default index
+# is unreachable at usable speeds from CN datacenters.
+RUN pip install --no-cache-dir -i https://mirrors.aliyun.com/pypi/simple/ -r requirements.txt
 COPY --chown=studio:studio backend ./backend
 COPY --chown=studio:studio web ./web
 COPY --chown=studio:studio fixtures ./fixtures

@@ -141,3 +141,4 @@ service_account*.json
 *.swo
 *.bak
 *~
+/.omc
