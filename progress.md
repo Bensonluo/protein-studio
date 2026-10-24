@@ -207,3 +207,9 @@
 - 研究：LIVIA About 度量定义表 + flyark/AFM-LIS 源码（transform/mean 双向实现）+ Kim & Perrimon 2026 bioRxiv + af-analysis 独立实现 + Kim 2024 原始 LIS 论文 + LIVIA Prediction Analysis 阈值页（六源）；actifpTM 候选被排除——正牌需 AF2 distogram（AF3 不产出，Dall'Armellina 2025 明示），LIVIA 亦仅 PAE 近似且自标偏高，诚实优先不实现。
 - 实现：interface_contacts 单遍历新增 LIS 家族（conf=1−PAE/12 ROC 优化 cutoff、两方向各自均值再平均、cLIS 限 Cα≤8Å 接触格、iLIS=√(LIS×cLIS) 无接触即 0、LIA/cLIA/iLIA/iLISA）；attach/server 落 interfaceScores；store 剥离；前端 chips 追加 iLIS 按 LIVIA Y2H FPR 分带（0.551/0.339/0.223）着色 + tooltip 全口径说明（Cα 代 Cβ 如实标注）。
 - 验证：自捕真 bug——close_pairs 只存 小→大 有序对，反向接触格漏查致 B→A 方向 cLIS 漏计，冒烟对拍手算发现并修复；后端 40/40（手算 fixture 精确断言 LIS 0.6806/cLIS 0.75/iLIS 0.7144）；browser_ranked_models 20/20 首跑即绿；十层链 10/10（后端 332 OK/1 skip/70.8s）；SEC-GREP 手动 diff-scoped CLEAN。English commit: feat: per-chain-pair iLIS local interface scores。
+
+### 迭代 #26（2026-10-25）：3D 界面着色模式（非界面灰化）
+
+- 研究：LIVIA About/Prediction Analysis（Gray non-LIR 选项 + Mol* LIR cartoon 默认视图 + Gradient 链色预设）+ ChimeraX interfaces 官方文档（伙伴链浅灰剪影 Show Contact Residues）+ flyark/LIVIA GitHub README（LIR 链色/cLIR 深色结构渲染）+ PyMOL InterfaceResidues 工作流（Oppenheimer 博客：非界面残基单独灰化）（四源）；actifpTM 候选研究后排除——正牌需 AF2 distogram（AF3 不产出，Dall'Armellina 2025 明示），LIVIA 亦仅 PAE 近似且自标偏高，诚实优先不实现近似口径。
+- 实现：#color-mode 新增「界面着色」选项（仅 ifaceData 门控）；applyViewerStyle interface 分支——非界面残基灰底 #8e9ca6（setStyle 字面色）+ 界面残基 per-链色 addStyle 字面色（#21 可观测惯例）；surface 无逐原子样式走渲染期 colorfunc；采样视图/无接触回退按链着色（select 联动回退选中显示）。
+- 验证：调试弧线如实记录——首版 colorfunc 断言超时 → 探针证实 3Dmol 将 colorfunc 解析进 WebGL 顶点色、不落 atom.style（字面色才可观测）→ 改字面色方案 → 二次探针证实产品行为正确且切回链色无字面色残留 → 修测试第二断言预期 → browser_ranked_models 21/21 绿；十层链 10/10（后端 332 OK/1 skip/72.7s，#26 未动后端）；SEC-GREP 手动 diff-scoped CLEAN。English commit: feat: interface focus color mode。

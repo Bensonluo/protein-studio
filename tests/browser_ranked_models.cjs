@@ -67,6 +67,7 @@ const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.
   checks.push('Model picker lists every ranked sample with its AF3-style rank, pLDDT and ranking score, rank 1 selected by default');
   assert.equal(await page.locator('.chain-conf-panel').count(),0);
   assert.equal(await page.locator('.pae-interface-chip').count(),0);
+  assert.equal(await page.locator('#color-mode option[value="interface"]').count(),0);
   const modelTable=page.locator('section.panel:has-text("模型与结果制品") tbody');
   const headers=await page.locator('section.panel:has-text("模型与结果制品") thead th').allTextContents();
   assert.ok(headers.includes('排名分'));
@@ -189,6 +190,12 @@ const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.
   await linesBtn.click();
   assert.match(await linesBtn.textContent(),/接触线：关/);
   await page.waitForFunction(()=>state.contactLineCount===0,null,{timeout:8000});
+  const colorMode=page.locator('#color-mode');
+  assert.equal(await colorMode.locator('option[value="interface"]').count(),1);
+  await colorMode.selectOption('interface');
+  await page.waitForFunction(()=>{const atoms=state.viewer.getModel().selectedAtoms({});return atoms.filter(a=>a.resi>=5).every(a=>a.style?.cartoon?.color==='#9edac6')&&atoms.filter(a=>a.resi<5).every(a=>a.style?.cartoon?.color==='#8e9ca6');},null,{timeout:8000});
+  await colorMode.selectOption('chain');
+  await page.waitForFunction(()=>state.viewer.getModel().selectedAtoms({}).every(a=>!a.style?.cartoon?.color),null,{timeout:8000});
   checks.push('Per-chain pTM and average interface ipTM render for multichain jobs, banded by the ipTM thresholds (AF3 Server convention)');
   checks.push('Interface PAE means per chain pair shown as chips (⟨PAE⟩_int, Zhu et al. 2023 convention, both directed blocks averaged)');
   checks.push('Interface chips append ipSAE per chain pair (Dunbrack 2025 convention, max of both directions) colored by AFDB interpretation bands (>=0.8/0.7/0.6)');
@@ -196,6 +203,7 @@ const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.
   checks.push('Confident interface contact rows list per-chain participating residue ranges (AFDB PAE<10A + CA<15A pair convention, ChimeraX-style participating-residue reporting)');
   checks.push('Interface residue toggle highlights backend-computed confident-contact residues as accent sticks on the primary model only (PyMOL byres-within convention); absent on sample views and contact-less jobs');
   checks.push('Contact-lines toggle draws PAE-colored cylinders between 8 A cross-chain pairs (ChimeraX alphafold contacts convention, 0/5/10/15/20 A bands) on the primary model only and clears them on toggle-off');
+  checks.push('Interface color mode grays non-interface residues and keeps the chain color on confident-contact residues (LIVIA Gray non-LIR convention); option only offered for multichain jobs with contact data');
   checks.push('Single-model reference jobs keep the plain viewer without a picker or per-row view actions');
   await page.locator('[data-view="jobs"]').click();
   await page.locator('[data-job-id="job-m"] .row-action').click();

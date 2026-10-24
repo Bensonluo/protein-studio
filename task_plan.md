@@ -417,3 +417,14 @@
 
 验证计划：同 #24 十层链。
 验证结果：内核冒烟对拍手算时自捕反向接触格漏查 bug（close_pairs 有序对成员判断需双向查）并修复；修复后手算全对齐。后端 40/40；browser_ranked_models 20/20 首跑即绿；十层链 t1–t10 全绿（全量后端 332 OK/1 skip/70.8s）；手动 diff-scoped SEC-GREP CLEAN。
+
+## 2026-10-25 持续迭代：3D 界面着色模式
+
+#25 后把界面分析从「数据清单」落到「视觉焦点」。依据四源：LIVIA About（Gray non-LIR 选项、Mol* 默认 LIR cartoon 视图、Gradient 预设 LIR 浅/cLIR 深链色）；LIVIA Prediction Analysis（Show complete structure / Gray non-LIR 两级显示控制）；ChimeraX interfaces 官方文档（Show Contact Residues：目标链界面残基着色 + 伙伴链其余部分浅灰剪影、隐藏链节点灰显）；flyark/LIVIA GitHub README 与 PyMOL InterfaceResidues 实践（非界面残基灰化、界面高亮为通行惯例）。设计决策：以着色模式（color-select 选项）而非开关实现——与 confidence/chain/spectrum 同级、模式间互斥清晰；仅 ifaceData（主模型 + 有界面接触数据）提供选项，其余场景 select 回退显示按链着色且 applyViewerStyle 走链配色（与 bFactorConfidenceColorer()||chainColoring 同式文档化回退）；非界面灰 #8e9ca6 复用图例「未匹配」灰语义；Cartoon/Stick 用字面色（3Dmol 顶点级可观测），Surface 走渲染期 colorfunc（与现有 surface 无字面色断言一致）。
+
+1. [完成] web/app.js applyViewerStyle：interface 分支（groups=interfaceContactSelection()；非 surface → coloring={color:'#8e9ca6'} 字面灰底 + 样式应用后逐接触组 addStyle per-链字面色 {cartoon|stick+sphere}；surface → byChain Map colorfunc 链色/灰）；渲染后端已算区间、前端不推距离（沿 #21 契约）。
+2. [完成] web/app.js renderStudio：#color-mode 追加 interface 选项（title 注明 LIVIA Gray non-LIR 惯例与回退语义）；chain 选项 selected 条件含 (state.color==='interface'&&!ifaceData) 回退显示。
+3. [完成] 测试 browser_ranked_models（20→21 项）：job-m 断言选项缺席；job-r selectOption('interface') 后 waitForFunction 断言 resi≥5 原子 cartoon.color==='#9edac6'（链色）且 resi<5 ==='#8e9ca6'（灰）；切回 chain 断言字面色全清（无残留）；README 功能句 + 21 项计数。
+
+验证计划：同 #25 十层链。
+验证结果：诚实记录两处测试侧修正——(a) 首版断言经 colorfunc 写法 8s 超时，探针（临时副本文件，不动真测试）证实 3Dmol 把 colorfunc 解析进 WebGL colorArray 而不落 atom.style，字面色才可端到端断言，产品随即改为字面色方案（行为不变、可观测性恢复）；(b) 第二断言初写期待链模式字面色（不存在），修正为「字面色清除」并经探针证实无残留。终态 browser_ranked_models 21/21 绿；十层链 t1–t10 全绿（全量后端 332 OK/1 skip/72.7s）；手动 diff-scoped SEC-GREP CLEAN。
