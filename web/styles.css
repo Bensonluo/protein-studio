@@ -54,3 +54,5 @@
 .ipsae-mid{color:#7a5a00}
 .ipsae-low{color:#9a4a00}
 .ipsae-poor{color:#a12622}
+.pae-interface-contacts{margin-top:6px;font-size:10px;color:#40554a;display:grid;gap:4px}
+.pae-contact-row{background:#f4f7f2;border:1px solid #e0e8da;border-radius:5px;padding:3px 8px}

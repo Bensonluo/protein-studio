@@ -125,6 +125,55 @@ class ResultArtifactsTests(unittest.TestCase):
         self.assertNotIn('ipSae', parsers.parse_confidence(
             self.source({'pae': [[0, 2], [5, 0]], 'token_chain_ids': ['A', 'B', 'C']})))
 
+    def test_interface_contacts_follow_afdb_pair_convention(self):
+        residues = [{'chain': 'A', 'x': 0.0, 'y': 0.0, 'z': 0.0},
+                    {'chain': 'A', 'x': 1.0, 'y': 0.0, 'z': 0.0},
+                    {'chain': 'B', 'x': 10.0, 'y': 0.0, 'z': 0.0},
+                    {'chain': 'B', 'x': 40.0, 'y': 0.0, 'z': 0.0}]
+        close = parsers.interface_contacts([[0, 0, 5, 0], [0, 0, 5, 0], [5, 5, 0, 0], [0, 0, 0, 0]], residues)
+        self.assertEqual(close, {'contacts': [{'a': 'A', 'b': 'B', 'pairs': 2,
+                                               'resA': [[0, 1]], 'resB': [[2, 2]]}], 'truncated': False})
+        # The pair qualifies on the lower directed PAE only: 3 vs 12.
+        directed = parsers.interface_contacts([[0, 0, 3, 0], [0, 0, 12, 0], [12, 12, 0, 0], [0, 0, 0, 0]], residues)
+        self.assertEqual(directed['contacts'], [{'a': 'A', 'b': 'B', 'pairs': 1,
+                                                 'resA': [[0, 0]], 'resB': [[2, 2]]}])
+        distant = parsers.interface_contacts([[0, 0, 5, 0], [0, 0, 5, 0], [5, 5, 0, 0], [0, 0, 0, 0]],
+                                              [{'chain': 'A', 'x': 0.0, 'y': 0.0, 'z': 0.0},
+                                               {'chain': 'A', 'x': 1.0, 'y': 0.0, 'z': 0.0},
+                                               {'chain': 'B', 'x': 40.0, 'y': 0.0, 'z': 0.0},
+                                               {'chain': 'B', 'x': 41.0, 'y': 0.0, 'z': 0.0}])
+        self.assertEqual(distant['contacts'], [])
+        alternating = []
+        for step in range(600):
+            alternating.extend(({'chain': 'A', 'x': 0.0, 'y': step * 100.0, 'z': 0.0},
+                                {'chain': 'B', 'x': 10.0, 'y': step * 100.0, 'z': 0.0}))
+        rows = []
+        for index in range(1200):
+            rows.append([5.0 if abs(column - index) == 1 and min(column, index) % 2 == 0 else 0.0
+                         for column in range(1200)])
+        crowded = parsers.interface_contacts(rows, alternating)
+        self.assertTrue(crowded['truncated'])
+        self.assertEqual(len(crowded['contacts'][0]['resA']), 512)
+
+    def test_attach_interface_contacts_requires_aligned_residue_axes(self):
+        result = artifacts.stream_confidence(
+            self.source({'pae': [[0, 3], [3, 0]]}), self.root, build_pae=True, axis_kind='residue')
+        payload = {'residues': [{'chain': 'A', 'x': 0.0, 'y': 0.0, 'z': 0.0},
+                                {'chain': 'B', 'x': 10.0, 'y': 0.0, 'z': 0.0}]}
+        artifacts.attach_interface_contacts(payload, result['paeArtifact'], self.root)
+        self.assertEqual(payload['interfaceContacts'], [{'a': 'A', 'b': 'B', 'pairs': 1,
+                                                         'resA': [[0, 0]], 'resB': [[1, 1]]}])
+        # Row count differing from residues, or a token-kind axis where a
+        # residue can span tokens, never guesses a join.
+        for bad in ({'residues': payload['residues'][:1]}, {'residues': payload['residues'] + [None]}):
+            artifacts.attach_interface_contacts(dict(bad), result['paeArtifact'], self.root)
+            self.assertNotIn('interfaceContacts', bad)
+        token = artifacts.stream_confidence(
+            self.source({'pae': [[0, 3], [3, 0]], 'token_chain_ids': ['A', 'B']}), self.root, build_pae=True)
+        skipped = {'residues': payload['residues']}
+        artifacts.attach_interface_contacts(skipped, token['paeArtifact'], self.root)
+        self.assertNotIn('interfaceContacts', skipped)
+
     def test_invalid_matrices_never_publish_or_invent_values(self):
         bad = [[], [[0, 1]], [[0], [2, 0]], [[0, None], [1, 0]], [[0, True], [1, 0]],
                [[0, -1], [1, 0]], [[0, '1'], [1, 0]], [[[0], 1], [1, 0]]]

@@ -20,10 +20,10 @@ from pathlib import Path
 
 if __package__:
     from .parsers import FileTooLargeError, parse_confidence, parse_structure
-    from .result_artifacts import stream_confidence, compact_pae, PAELimitError
+    from .result_artifacts import stream_confidence, compact_pae, attach_interface_contacts, PAELimitError
 else:
     from parsers import FileTooLargeError, parse_confidence, parse_structure
-    from result_artifacts import stream_confidence, compact_pae, PAELimitError
+    from result_artifacts import stream_confidence, compact_pae, attach_interface_contacts, PAELimitError
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / 'fixtures'
@@ -559,6 +559,9 @@ def _collect_outputs(directory, engine, work_dir, expected_chains=None, cancelle
             residue['plddt'] = value
         result['confidenceDefinition'] = 'Per-residue pLDDT from prediction confidence JSON'
     result.update(metrics)
+    # Interface contacts need residue-aligned PAE axes; the join is skipped
+    # (never guessed) for token-kind axes where a residue can span tokens.
+    attach_interface_contacts(result, metrics.get('paeArtifact'), work_dir)
     if missing_ranking:
         result.setdefault('warnings', []).append(missing_ranking)
     result.update(structurePath=str(top_path.resolve()), structureFile=str(top_path.resolve()), rankingMetric=ranking_metric,

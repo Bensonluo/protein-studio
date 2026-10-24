@@ -349,3 +349,16 @@
 
 验证计划：py_compile → 定向后端（test_result_artifacts/test_api）→ 根 tests → browser_ranked_models → browser_pae_lazy → browser_campaign_scores → browser_campaign（需 STUDIO_URL 隔离服务）→ npm run test:workspace-ux → 全量后端 → 安全 grep。
 验证结果：链 t1–t10 全绿（test_result_artifacts 17 项、test_api 19 项、browser_ranked_models 16 项、pae_lazy 16 项、workspace-ux 5 套件、全量后端 328 OK / 1 skip / 76.2s）；t7/t8 首跑红为链脚本漏设 STUDIO_URL（套件默认打 8765 无服务器，ERR_CONNECTION_REFUSED，未触达应用代码），按既有隔离服务器规程（PROTEIN_STUDIO_PORT=8973 + 临时数据目录、用后即停、主端口 8765 不动）补跑 campaign_scores 12/12、campaign 9/9 全绿；安全 grep 命中均为既有项（.task-actions 类名含 "sk-" 子串、app.js 既有模板渲染 innerHTML 赋值，新增插值全部经 escapeHTML/toFixed），判定 CLEAN。
+
+## 2026-10-25 持续迭代：每对链高置信界面接触残基清单
+
+#19 落地后继续深化界面分析：从链对级分数下沉到残基级清单。依据四源：AlphaFold DB FAQ（EBI，ipSAE 对口径明示「PAE < 10 Å 且预测结构内距离 < 15 Å 的残基对」）、Dunbrack 2025（PMC11844409，AFDB 变体的距离限制描述）、ProteinIQ（Cα–Cα 距离阈值默认 15 Å 的独立实现）、ChimeraX alphafold interfaces 官方文档 + AlphaFold prospecting 教程页（输出形态先例：置信对计数 + 每链参与残基汇报，rbvi.ucsf.edu/chimerax/data/afbatch-jan2024）。设计决策：距离用 Cα–Cα <15 Å（解析器恰每残基存一个 CA，AFDB ipSAE 同口径；ChimeraX 任意原子 ≤4 Å 需全原子、本产品不猜）；PAE 取两方向较低值（ChimeraX maxPae 同惯例）；行↔残基对齐只认 residue 轴且行数==残基数，token 轴（AF3 多 token 残基）不猜测、不产出（README 明示）；超 512 段/侧诚实截断并附警告。
+
+1. [完成] 纯内核 parsers.interface_contacts(rows, residues)：15 Å 网格 O(n) 找跨链 CA 邻居，单遍 PAE 行查值，min(双向 PAE)<10 Å 判置信，按链对聚合 {a,b,pairs,resA,resB}（含 0 起闭区间压缩、截断标志）；自捕 pairs 双计 bug（无序对两方向只计 i<j 一次）并修复。
+2. [完成] engine 路径：result_artifacts 增 _iter_pae_rows（行式产出行）与 attach_interface_contacts（status=available、axisKind=residue、rows==len(residues) 三守卫），engine 顶层模型 join 后调用。
+3. [完成] 导入路径：server.py 对齐内联矩阵同口径计算（#18 守卫已证对齐，≥2 链才算）。
+4. [完成] 契约：store.list() 剥离 $.result.interfaceContacts（detail 保留）；前端链间置信度面板增 .pae-contact-row（1 起结构序号区间、ChimeraX 式参与残基汇报、title 注口径），无该字段的旧结果渲染不变（含 AF2 残基轴无 token_chain_ids 时仅接触清单亦有面板的早退守卫修正）。
+5. [完成] 测试：内核纯函数四情形（近距 2 对/方向 min 单对/远距空/600 段截断 512 上限）、attach 对齐守卫（行数不符与 token 轴均 no-op）、导入二聚体端到端（interfaceContacts 精确断言）、store 剥离、browser_ranked_models fixture+区间渲染断言（16→17 项）；README 第 6 条与计数同步。开发中红跑两次如实记录：测试预期 1 起序号换算错（97–110→98–110）、内核 pairs 双计（先写断言前自审发现）。
+
+验证计划：同 #19 十层链（STUDIO_URL 隔离服务器直接烘入脚本）。
+验证结果：t1–t10 全绿（test_result_artifacts+test_api 38 项、browser_ranked_models 17 项、pae_lazy 16 项、campaign_scores 12/12、campaign 9/9、workspace-ux 5 套件、全量后端 330 OK / 1 skip / 75.4s）；SEC-GREP CLEAN（新增插值全部经 escapeHTML/整数格式化）。

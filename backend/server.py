@@ -525,7 +525,7 @@ class StudioApplication:
         confidence = payload.get("confidence")
         if confidence is not None and not isinstance(confidence, (dict, list)):
             raise ValueError("confidence must be a JSON object or array.")
-        from .parsers import parse_structure, parse_confidence
+        from .parsers import parse_structure, parse_confidence, interface_contacts
         job = self.store.create({"name": name, "engine": "import", "chains": [],
                                  "source": source, "priority": "normal"}, initial_status="running")
         directory = self.jobs_dir / job["id"]
@@ -565,6 +565,18 @@ class StudioApplication:
                         f"{len(result['residues'])} residues; the matrix was not attached because its "
                         "axes would not align with residues. Raw confidence JSON remains downloadable.")
                 result.update(parsed_confidence)
+                matrix = parsed_confidence.get("pae")
+                if matrix and len(matrix) == len(result["residues"]) and len(
+                        {residue["chain"] for residue in result["residues"]}) >= 2:
+                    # Same AFDB pair convention as the engine path; the guard
+                    # above already proved the rows align with residues.
+                    summary = interface_contacts(matrix, result["residues"])
+                    if summary["contacts"]:
+                        result["interfaceContacts"] = summary["contacts"]
+                    if summary["truncated"]:
+                        result.setdefault("warnings", []).append(
+                            "Interface contact residue ranges were truncated at 512 runs per side; "
+                            "the PAE matrix and structure remain downloadable.")
                 artifacts.append({"path": str(confidence_path)})
             result.update(structurePath=str(path), structureFile=path.name,
                           artifacts=artifacts,

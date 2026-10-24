@@ -171,3 +171,9 @@
 - 研究：核源发现 ipSAE 定义已从 2023 Cβ≤5Å 演进为 Dunbrack 2025 纯 PAE 公式（PMC11844409 Eq. 14-16），AFDB 已采用同口径展示（PAE<10 Å 且 Cα–Cα<15 Å，分带 ≥0.8/0.7/0.6）；独立佐证 DunbrackLab/IPSAE 与 ProteinIQ。纯 PAE 口径恰与既有 PAE 二进制 + token_chain_ids 管线同构，解析器 CA-only 约束无影响；采用论文公式并在 README 明示与 AFDB 距离限制变体的口径差异。ChimeraX binder 三源（官方文档/prospecting 教程/Trac #17749）留作后续候选。
 - 实现：parsers.ipsae_row_score 内核 + parse_confidence 小矩阵路径；result_artifacts._interface_ipsae 流式路径（同 interfacePae 守卫与超限诚实跳过）；导入失配 pop；store 剥离；前端 chips 追加 ipSAE + AFDB 四分带着色。
 - 验证：10 层链 t1–t10 全绿（全量后端 328 OK/1 skip；browser_ranked_models 16 项）；t7/t8 首跑红系链脚本漏设 STUDIO_URL（连接拒绝、未触达应用代码），隔离服务器补跑 12/12、9/9 绿；SEC-GREP CLEAN。English commit: feat: per-chain-pair ipSAE interface scores。
+
+### 迭代 #20（2026-10-25）：每对链高置信界面接触残基清单
+
+- 研究：AFDB ipSAE 对口径（PAE<10 Å 且 Cα–Cα<15 Å、两方向较低 PAE）+ ChimeraX alphafold interfaces 参与残基输出形态（四源：AFDB FAQ、Dunbrack 2025、ProteinIQ、ChimeraX 文档+教程页）；Cα 口径恰与解析器单 CA 存储匹配，无需扩解析器；token 轴不猜对齐。
+- 实现：parsers.interface_contacts 纯内核（网格 O(n)、区间压缩、512 段截断）；result_artifacts._iter_pae_rows + attach_interface_contacts（engine 顶层 join）；server 导入路径同口径；store 剥离；前端 .pae-contact-row 渲染；自捕并修复 pairs 双计 bug。
+- 验证：十层链 t1–t10 全绿（全量后端 330 OK/1 skip；browser_ranked_models 17 项；campaign 12/12、9/9）；SEC-GREP CLEAN。English commit: feat: confident interface contact residues per chain pair。

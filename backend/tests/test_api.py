@@ -281,6 +281,20 @@ class APITests(unittest.TestCase):
             "format": "pdb", "structureText": PDB, "confidence": {"pae": [[1.5]]}})
         self.assertEqual(status, 201, pae_aligned)
         self.assertEqual(pae_aligned["result"]["pae"], [[1.5]])
+        # Multichain import with an aligned PAE reports confident contacts
+        # (AFDB pair convention: PAE < 10 A and C-alpha distance < 15 A).
+        dimer = ("ATOM      1  CA  ALA A   1       0.000   0.000   0.000  1.00 90.00           C  \n"
+                 "ATOM      2  CA  ALA A   2       1.000   0.000   0.000  1.00 90.00           C  \n"
+                 "ATOM      3  CA  ALA B   1      10.000   0.000   0.000  1.00 90.00           C  \n"
+                 "ATOM      4  CA  ALA B   2      40.000   0.000   0.000  1.00 90.00           C  \n"
+                 "END\n")
+        status, contacts = self.request("/api/import", "POST", {
+            "format": "pdb", "structureText": dimer,
+            "confidence": {"pae": [[0, 0, 5, 0], [0, 0, 5, 0], [5, 5, 0, 0], [0, 0, 0, 0]],
+                           "token_chain_ids": ["A", "A", "B", "B"]}})
+        self.assertEqual(status, 201, contacts)
+        self.assertEqual(contacts["result"]["interfaceContacts"],
+                         [{"a": "A", "b": "B", "pairs": 2, "resA": [[0, 1]], "resB": [[2, 2]]}])
 
 
 class StorageTests(unittest.TestCase):
@@ -318,7 +332,8 @@ class StorageTests(unittest.TestCase):
                       "plddt": [90.0, 80.0], "rankedModels": [{"rank": 1}],
                       "chainPtm": [0.82, 0.55], "chainIptm": [0.71, 0.48],
                       "interfacePae": [{"a": "A", "b": "B", "mean": 3.5}],
-                      "ipSae": [{"a": "A", "b": "B", "value": 0.82}]}
+                      "ipSae": [{"a": "A", "b": "B", "value": 0.82}],
+                      "interfaceContacts": [{"a": "A", "b": "B", "pairs": 9, "resA": [[0, 3]], "resB": [[4, 6]]}]}
             store.finish(job["id"], "completed",
                          result={"sequenceLength": 2, "meanPlddt": 88.1, "iptm": 0.72, **arrays})
             summary = store.list()[0]["result"]

@@ -22,7 +22,7 @@ const detail={
       {rank:1,name:'sample-0',structureUrl:'/api/jobs/job-m/artifact?name=sample-0.pdb',structureFormat:'pdb',meanPlddt:88.1,ptm:0.8,iptm:0.85,rankingScore:0.842},
       {rank:2,name:'sample-1',structureUrl:'/api/jobs/job-m/artifact?name=sample-1.pdb',structureFormat:'pdb',meanPlddt:71.4,ptm:0.6,iptm:0.62,rankingScore:0.610},
     ],artifacts:[{name:'scores.json',url:'/api/jobs/job-m/artifact?name=scores.json',size:2048}]}},
-  'job-r':{...jobs.find(j=>j.id==='job-r'),result:{structureUrl:'/api/jobs/job-r/structure',structureFormat:'pdb',sequenceLength:6,meanPlddt:80.2,chainPtm:[0.82,0.55],chainIptm:[0.71,0.48],interfacePae:[{a:'A',b:'B',mean:3.2}],ipSae:[{a:'A',b:'B',value:0.85}],plddt:[],residues:[],provenance:{mode:'reference'},
+  'job-r':{...jobs.find(j=>j.id==='job-r'),result:{structureUrl:'/api/jobs/job-r/structure',structureFormat:'pdb',sequenceLength:6,meanPlddt:80.2,chainPtm:[0.82,0.55],chainIptm:[0.71,0.48],interfacePae:[{a:'A',b:'B',mean:3.2}],ipSae:[{a:'A',b:'B',value:0.85}],interfaceContacts:[{a:'A',b:'B',pairs:23,resA:[[11,44],[97,109]],resB:[[4,29]]}],plddt:[],residues:[],provenance:{mode:'reference'},
     rankedModels:[{rank:1,name:'Polyubiquitin-B',structureUrl:'/api/jobs/job-r/artifact?name=afdb.pdb',structureFormat:'pdb',meanPlddt:80.2}],artifacts:[]}},
 };
 const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.stringify(data)});
@@ -163,9 +163,15 @@ const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.
   assert.match(await chainConf.locator('.pae-interface-chip').textContent(),/A↔B 界面 PAE 3\.2 Å/);
   assert.match(await chainConf.locator('.pae-interface-chip').textContent(),/ipSAE 0\.85/);
   assert.equal(await chainConf.locator('.ipsae-band.ipsae-high').count(),1);
+  assert.equal(await chainConf.locator('.pae-contact-row').count(),1);
+  const contactText=await chainConf.locator('.pae-contact-row').textContent();
+  assert.match(contactText,/A↔B：高置信接触 23 对/);
+  assert.match(contactText,/A 残基 12–45, 98–110/);
+  assert.match(contactText,/B 残基 5–30/);
   checks.push('Per-chain pTM and average interface ipTM render for multichain jobs, banded by the ipTM thresholds (AF3 Server convention)');
   checks.push('Interface PAE means per chain pair shown as chips (⟨PAE⟩_int, Zhu et al. 2023 convention, both directed blocks averaged)');
   checks.push('Interface chips append ipSAE per chain pair (Dunbrack 2025 convention, max of both directions) colored by AFDB interpretation bands (>=0.8/0.7/0.6)');
+  checks.push('Confident interface contact rows list per-chain participating residue ranges (AFDB PAE<10A + CA<15A pair convention, ChimeraX-style participating-residue reporting)');
   checks.push('Single-model reference jobs keep the plain viewer without a picker or per-row view actions');
   await page.locator('[data-view="jobs"]').click();
   await page.locator('[data-job-id="job-m"] .row-action').click();

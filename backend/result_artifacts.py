@@ -16,7 +16,7 @@ import sys
 import uuid
 from urllib.parse import quote
 
-from .parsers import ipsae_row_score
+from .parsers import interface_contacts, ipsae_row_score
 
 try:
     import ijson
@@ -538,6 +538,37 @@ def _interface_ipsae(path, chains):
                     best[(chain, other)] = score
     return [{'a': a, 'b': b, 'value': round(max(best.get((a, b), 0.0), best.get((b, a), 0.0)), 4)}
             for a, b in sorted({(x, y) for x in columns for y in columns if x < y})]
+
+
+def _iter_pae_rows(path, size):
+    """Yield float64 PAE rows in axis order, one row of memory at a time."""
+    with path.open('rb') as stream:
+        for _ in range(size):
+            buffer = array('d')
+            buffer.frombytes(stream.read(size * 8))
+            if len(buffer) != size:
+                raise ValueError('PAE binary ended early while reading aligned rows.')
+            if sys.byteorder != 'little':
+                buffer.byteswap()
+            yield buffer
+
+
+def attach_interface_contacts(result, descriptor, root):
+    """Join an aligned PAE artifact with parsed residues (engine path): rows
+    pair with residues by index, so this runs only for residue-kind axes whose
+    row count matches the structure. Token-kind axes (AF3) can carry more than
+    one token per residue and are skipped rather than guessed."""
+    if not isinstance(descriptor, dict) or descriptor.get('status') != 'available' \
+            or descriptor.get('axisKind') != 'residue' \
+            or descriptor.get('rows') != len(result.get('residues') or []):
+        return
+    summary = interface_contacts(_iter_pae_rows(_validate_descriptor(descriptor, root), descriptor['rows']),
+                                 result['residues'])
+    if summary['contacts']:
+        result['interfaceContacts'] = summary['contacts']
+    if summary['truncated']:
+        result.setdefault('warnings', []).append(
+            'Interface contact residue ranges were truncated at 512 runs per side; the PAE matrix and structure remain downloadable.')
 
 
 def read_pae(descriptor, root, *, max_size=256, row_start=None, col_start=None, rows=None, cols=None):

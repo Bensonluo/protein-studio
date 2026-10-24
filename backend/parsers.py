@@ -223,6 +223,83 @@ def ipsae_row_score(values):
     return sum(1.0 / (1.0 + (value / d0) ** 2) for value in qualifying) / length
 
 
+CONTACT_PAE_CUTOFF = 10.0
+CONTACT_CA_DISTANCE = 15.0
+CONTACT_MAX_RANGES = 512
+
+
+def _index_ranges(indices):
+    """Compress sorted residue indices into inclusive [start, end] runs."""
+    runs = []
+    for index in indices:
+        if runs and index == runs[-1][1] + 1:
+            runs[-1][1] = index
+        else:
+            runs.append([index, index])
+    return runs
+
+
+def interface_contacts(rows, residues):
+    """Confident interface contacts per unordered chain pair, using the AFDB
+    ipSAE pair convention (AlphaFold DB FAQ: PAE < 10 A and predicted-structure
+    distance < 15 A between residues of different chains) with the ChimeraX
+    alphafold-interfaces habit of reporting, per pair, the confident-pair count
+    and the participating residues on each side. PAE is the lower of the two
+    directed values; distance is C-alpha to C-alpha (the parser keeps exactly
+    one CA per residue). rows yields the matrix rows in axis order; residues
+    pair with rows by index. Returns {'contacts': [{a, b, pairs, resA, resB}]
+    with inclusive zero-based index runs, 'truncated': bool} and only lists
+    chain pairs with at least one confident contact."""
+    size = len(residues)
+    limit = CONTACT_CA_DISTANCE * CONTACT_CA_DISTANCE
+    cells = {}
+    for position, residue in enumerate(residues):
+        cells.setdefault((int(residue['x'] // CONTACT_CA_DISTANCE), int(residue['y'] // CONTACT_CA_DISTANCE),
+                          int(residue['z'] // CONTACT_CA_DISTANCE)), []).append(position)
+    partners = {index: [] for index in range(size)}
+    for position, residue in enumerate(residues):
+        gx, gy, gz = int(residue['x'] // CONTACT_CA_DISTANCE), int(residue['y'] // CONTACT_CA_DISTANCE), \
+            int(residue['z'] // CONTACT_CA_DISTANCE)
+        for ox in (gx - 1, gx, gx + 1):
+            for oy in (gy - 1, gy, gy + 1):
+                for oz in (gz - 1, gz, gz + 1):
+                    for other in cells.get((ox, oy, oz), ()):
+                        if other <= position or residues[other]['chain'] == residue['chain']:
+                            continue
+                        dx = residues[other]['x'] - residue['x']
+                        dy = residues[other]['y'] - residue['y']
+                        dz = residues[other]['z'] - residue['z']
+                        if dx * dx + dy * dy + dz * dz <= limit:
+                            partners[position].append(other)
+                            partners[other].append(position)
+    directed = {}
+    for row_index, row in enumerate(rows):
+        for column in partners[row_index]:
+            directed[(row_index, column)] = row[column]
+    grouped = {}
+    for (row_index, column), value in directed.items():
+        if row_index > column:
+            continue
+        if min(value, directed.get((column, row_index), float('inf'))) < CONTACT_PAE_CUTOFF:
+            key = (residues[row_index]['chain'], residues[column]['chain'])
+            first, second = key if key[0] < key[1] else (key[1], key[0])
+            entry = grouped.setdefault((first, second), {'pairs': 0, 'a': set(), 'b': set()})
+            entry['pairs'] += 1
+            side_a, side_b = (row_index, column) if residues[row_index]['chain'] == first else (column, row_index)
+            entry['a'].add(side_a)
+            entry['b'].add(side_b)
+    truncated = False
+    summary = []
+    for (first, second), entry in sorted(grouped.items()):
+        runs_a, runs_b = _index_ranges(sorted(entry['a'])), _index_ranges(sorted(entry['b']))
+        if len(runs_a) > CONTACT_MAX_RANGES or len(runs_b) > CONTACT_MAX_RANGES:
+            truncated = True
+            runs_a, runs_b = runs_a[:CONTACT_MAX_RANGES], runs_b[:CONTACT_MAX_RANGES]
+        summary.append({'a': first, 'b': second, 'pairs': entry['pairs'],
+                        'resA': runs_a, 'resB': runs_b})
+    return {'contacts': summary, 'truncated': truncated}
+
+
 def parse_confidence(path: Path) -> dict:
     """Read AF3/ColabFold/AFDB-style JSON without executing Python objects."""
     data = json.loads(_read(Path(path)), parse_constant=lambda value: None)
