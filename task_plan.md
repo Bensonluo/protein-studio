@@ -305,3 +305,18 @@
 验证计划：语法检查、排名模型契约 15/15（+1 界面 PAE 标签）、着色 vm 10 检查、workspace-ux 离线 5 套件、隔离 8973 分数契约 12/12、批次回归 9/9、深链端到端 4/4、冒烟 12 检查（8974）、根 tests OK、客户端通过、全后端 327 OK（1 按需 skip）。
 
 验证结果：全链路重跑九层全绿（23:21–23:24）：语法 OK；排名模型契约 15/15；着色 vm 10；workspace-ux 离线 5 套件 OK；隔离 8973 分数契约 12/12、批次回归 9/9、深链端到端 4/4；冒烟 12（8974）；根 tests OK；campaign_client 通过；全后端 327 OK（1 按需 skip）。如实记录：初跑 T8 红——axis_data 守卫修复落盘（约 23:16）晚于该进程导入时刻（23:15:56），进程按旧字节码跑出修复前同款 3 errors；守卫确认在位（result_artifacts.py:329，AF3 confidence 含 pae 无 token axes 时 axis_data 为 None 的 #16 引入缺陷，be-tests 子代理套件复现 + 主线程定向复验 4/4 修复）后整链重跑取证通过。
+
+## 2026-10-24 持续迭代：PAE 链边界分隔线
+
+上上轮候选落地。依据三源：ChimeraX `alphafold pae` 官方文档（dividerLines 选项默认开启，多链预测在 PAE 图上画线界定链的起止，并如实注明线可能遮挡个别链末端残基、可关闭，https://www.cgl.ucsf.edu/chimerax/docs/user/commands/alphafold.html）、PAE Viewer webserver（Elfmann & Stülke 2023，按链标签分段 PAE 矩阵，https://pmc.ncbi.nlm.nih.gov/articles/PMC10320053/）、EBI Training PAE 解读页（对角块为各链域内置信、链间子块看相对排布，https://www.ebi.ac.uk/training/online/courses/alphafold/inputs-and-outputs/evaluating-alphafolds-predicted-structures-using-confidence-scores/pae-a-measure-of-global-confidence-in-alphafold-predictions）。检查发现 PAE 查看器有界预览/局部窗口已读矩阵原始值，但多链任务的链边界仍需逐格目测 token 索引——补链边界分隔线。
+
+1. [完成] 前端 pae-viewer：spec() 校验描述符 axisMetadata.token_chain_ids（axisKind=token、长度与 rows=cols 对齐、非空字符串≤128）得 chains；无元数据不猜链序。
+2. [完成] 绘制：采样/精确窗口相邻索引链 ID 变化处置 1px DOM 分隔线（绝对定位百分比，不碰画布像素、可断言可访问）；窗口内单一链或无可用边界不画；链数 2..128 之外不画。
+3. [完成] 诚实口径：默认开启、可一键切换（aria-pressed），方法注注明线可能遮挡个别链末端残基（ChimeraX 文档同款提示）与采样下短链边界可能未被显示。
+4. [完成] 契约 +3（13→16）：预览边界位置与测试侧独立重算逐像素对齐（±1e-3）、精确 64×64 瓦片跨界位置恰 50%、窗口内单链隐藏、无 token 元数据不渲染且隐藏开关。
+
+改动文件：web/pae-viewer.js、web/styles.css、tests/browser_pae_lazy.cjs、README.md（工作流第 6 项一句）。
+
+验证计划：语法检查、PAE 契约 16/16、排名模型契约 15/15（回归）、workspace-ux 离线 5 套件、隔离 8973 分数契约 12/12、批次回归 9/9、深链端到端 4/4、冒烟 12 检查（8974）、根 tests OK、客户端通过、全后端 327 OK（1 按需 skip）。
+
+验证结果：九层链路全绿（23:36–23:41）：语法 OK；PAE 契约 16/16（13→16，+3 链边界检查）；排名模型契约 15/15 回归通过；workspace-ux 离线 5 套件 OK；隔离 8973 分数契约 12/12、批次回归 9/9、深链端到端 4/4；冒烟 12（8974）；根 tests OK；campaign_client 通过；全后端 327 OK（1 按需 skip，76.3s）。独立探针几何复核：DOM 分隔线 CSS 位置与画布颜色跃变像素对齐（109.5/220=49.78%，±0.5px），线宽恰 1px、白色 0.85 不透明度加 0.5px 深色描边，深/浅数据块上均可见，开关按钮与 aria-pressed 正常。开发期三修如实记：契约初跑暴露 CSSOM 百分比 6 位有效数字序列化（断言改数值容差）、paintOverlay 漏 return（链边界方法注未附，自查定位）、跨结果缓存 key 切换后无自动绘制（测试改显式点击加载）。

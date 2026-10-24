@@ -15,7 +15,7 @@
   function spec(result={}){
     result=result||{};
     const d=result.paeArtifact;
-    if(d){return {descriptor:d,rows:d.rows,cols:d.cols,axisKind:d.axisKind||'unknown',available:d.status==='available'&&positive(d.rows)&&positive(d.cols),key:`${d.sha256||''}|${d.previewUrl||''}|${d.rows}|${d.cols}`,max:finite(result.maxPae)&&result.maxPae>0?result.maxPae:null};}
+    if(d){const ids=d.axisMetadata?.token_chain_ids;return {descriptor:d,rows:d.rows,cols:d.cols,axisKind:d.axisKind||'unknown',available:d.status==='available'&&positive(d.rows)&&positive(d.cols),key:`${d.sha256||''}|${d.previewUrl||''}|${d.rows}|${d.cols}`,max:finite(result.maxPae)&&result.maxPae>0?result.maxPae:null,chains:d.axisKind==='token'&&Array.isArray(ids)&&ids.length===d.rows&&ids.length===d.cols&&ids.every(x=>typeof x==='string'&&x.length>0&&x.length<=128)?ids:null};}
     const matrix=Array.isArray(result.pae)&&result.pae.length?result.pae:null;
     return {inline:matrix,rows:matrix?.length||0,cols:matrix?.[0]?.length||0,axisKind:'unknown',available:!!matrix&&positive(matrix[0]?.length),key:matrix,max:finite(result.maxPae)&&result.maxPae>0?result.maxPae:null};
   }
@@ -34,7 +34,7 @@
   function render(result){
     const s=spec(result),intro=`<div class="panel-heading"><h3>${icon('grid')}相对位置误差</h3><span class="subtle">PAE · Å</span></div><div class="analysis-title-note">原始行列顺序 · 不作对称化</div>`;
     if(!s.available)return `<section class="panel analysis-panel pae-panel">${intro}<div class="empty-analysis">${icon('grid')}<strong>${s.descriptor?'PAE 暂不可预览':'暂无 PAE 数据'}</strong><p>${text(s.descriptor?.reason||'预测输出包含 PAE 后可显示；不从三维坐标推算。')}</p></div><div class="pae-downloads">${downloads(s)}</div></section>`;
-    return `<section class="panel analysis-panel pae-panel" id="pae-panel">${intro}<div class="pae-metadata"><strong>${dimension(s)}</strong><span>${axis(s)} · 原始矩阵</span></div><div id="pae-idle" class="pae-idle"><span class="pae-idle-grid" aria-hidden="true">${icon('grid')}</span><p>按显示像素读取有界预览。<br>完整矩阵保留在结果文件中。</p><button class="button button-primary" type="button" id="pae-load-preview">${icon('play')}加载矩阵预览</button></div><p id="pae-error" class="pae-error" role="alert" hidden></p><div id="pae-plot" hidden><div class="pae-plot-mode"><strong id="pae-mode-label"></strong><button type="button" class="text-button" id="pae-overview" hidden>返回全图</button></div><div class="pae-wrap"><span class="pae-axis-y">行 · ${axis(s)}</span><canvas id="pae-canvas" class="pae-canvas" width="256" height="256" aria-label="PAE 原始行列顺序矩阵"></canvas><div class="pae-bottom">列 · ${axis(s)}</div><div class="pae-legend"><span>0 Å</span><span class="pae-gradient"></span><span id="pae-color-max"></span></div></div><div class="plot-tooltip" id="pae-tooltip">移动指针查看实际采样点</div><p class="pae-method-note" id="pae-method-note"></p><div class="pae-missing-key"><i></i>灰色：缺失值</div><form id="pae-window-form" class="pae-window-form"><div class="pae-window-heading">查看局部原始值 <span>坐标从 1 开始</span></div><label>起始行<input id="pae-row" type="number" min="1" max="${s.rows}" step="1" value="1" required></label><label>起始列<input id="pae-col" type="number" min="1" max="${s.cols}" step="1" value="1" required></label><label>窗口大小<select id="pae-window-size"><option value="32">32 × 32</option><option value="64" selected>64 × 64</option><option value="128">128 × 128</option></select></label><button type="submit" class="button button-secondary" id="pae-load-window">读取局部</button><div class="pae-window-nav" aria-label="原始矩阵窗口导航"><button type="button" data-pae-move="up" aria-label="上一行窗口">↑</button><button type="button" data-pae-move="left" aria-label="上一列窗口">←</button><button type="button" data-pae-move="right" aria-label="下一列窗口">→</button><button type="button" data-pae-move="down" aria-label="下一行窗口">↓</button></div></form></div><div class="pae-downloads">${downloads(s)}</div><p class="pae-source-note">PAE 是模型误差估计，预览不产生新的预测结果。</p></section>`;
+    return `<section class="panel analysis-panel pae-panel" id="pae-panel">${intro}<div class="pae-metadata"><strong>${dimension(s)}</strong><span>${axis(s)} · 原始矩阵</span></div><div id="pae-idle" class="pae-idle"><span class="pae-idle-grid" aria-hidden="true">${icon('grid')}</span><p>按显示像素读取有界预览。<br>完整矩阵保留在结果文件中。</p><button class="button button-primary" type="button" id="pae-load-preview">${icon('play')}加载矩阵预览</button></div><p id="pae-error" class="pae-error" role="alert" hidden></p><div id="pae-plot" hidden><div class="pae-plot-mode"><strong id="pae-mode-label"></strong><button type="button" class="text-button" id="pae-overview" hidden>返回全图</button><button type="button" class="text-button" id="pae-dividers" hidden aria-pressed="true" title="链边界分隔线（ChimeraX dividerLines 惯例）；线可能遮挡个别链末端残基">链边界</button></div><div class="pae-wrap"><span class="pae-axis-y">行 · ${axis(s)}</span><div class="pae-plot-area"><canvas id="pae-canvas" class="pae-canvas" width="256" height="256" aria-label="PAE 原始行列顺序矩阵"></canvas><div id="pae-chain-overlay" class="pae-chain-overlay" hidden role="img" aria-label="链边界分隔线"></div></div><div class="pae-bottom">列 · ${axis(s)}</div><div class="pae-legend"><span>0 Å</span><span class="pae-gradient"></span><span id="pae-color-max"></span></div></div><div class="plot-tooltip" id="pae-tooltip">移动指针查看实际采样点</div><p class="pae-method-note" id="pae-method-note"></p><div class="pae-missing-key"><i></i>灰色：缺失值</div><form id="pae-window-form" class="pae-window-form"><div class="pae-window-heading">查看局部原始值 <span>坐标从 1 开始</span></div><label>起始行<input id="pae-row" type="number" min="1" max="${s.rows}" step="1" value="1" required></label><label>起始列<input id="pae-col" type="number" min="1" max="${s.cols}" step="1" value="1" required></label><label>窗口大小<select id="pae-window-size"><option value="32">32 × 32</option><option value="64" selected>64 × 64</option><option value="128">128 × 128</option></select></label><button type="submit" class="button button-secondary" id="pae-load-window">读取局部</button><div class="pae-window-nav" aria-label="原始矩阵窗口导航"><button type="button" data-pae-move="up" aria-label="上一行窗口">↑</button><button type="button" data-pae-move="left" aria-label="上一列窗口">←</button><button type="button" data-pae-move="right" aria-label="下一列窗口">→</button><button type="button" data-pae-move="down" aria-label="下一行窗口">↓</button></div></form></div><div class="pae-downloads">${downloads(s)}</div><p class="pae-source-note">PAE 是模型误差估计，预览不产生新的预测结果。</p></section>`;
   }
   function stop(){generation++;active?.controller?.abort();active=null;}
   function validData(data,s,exact){
@@ -78,6 +78,31 @@
     finally{if(active===session&&request===session.request)busy(session,false);}
   }
   function previewSize(root){return Math.max(1,Math.min(limit,Math.ceil((root.getBoundingClientRect().width-54)*Math.min(devicePixelRatio||1,2))));}
+  // Chain-boundary divider lines (ChimeraX "alphafold pae" dividerLines default,
+  // PAE Viewer chain labels): a line sits between consecutive sampled/tile indices
+  // whose chain id changes. DOM lines keep canvas pixels untouched and are
+  // assertable; sampled previews may skip very short chains (honest, noted below).
+  function chainLines(session,data){
+    const ids=session.spec.chains;if(!ids)return null;
+    const distinct=new Set(ids).size;if(distinct<2||distinct>128)return null;
+    const v=[],h=[];
+    for(let x=1;x<data.colIndices.length;x++)if(ids[data.colIndices[x]]!==ids[data.colIndices[x-1]])v.push(x);
+    for(let y=1;y<data.rowIndices.length;y++)if(ids[data.rowIndices[y]]!==ids[data.rowIndices[y-1]])h.push(y);
+    return v.length||h.length?{v,h}:null;
+  }
+  function paintOverlay(session,data){
+    const el=session.root.querySelector('#pae-chain-overlay'),toggle=session.root.querySelector('#pae-dividers');if(!el||!toggle)return;
+    const lines=chainLines(session,data),fragment=document.createDocumentFragment();
+    if(lines){
+      for(const x of lines.v){const line=document.createElement('div');line.className='pae-chain-line-v';line.style.left=x/data.colIndices.length*100+'%';fragment.append(line);}
+      for(const y of lines.h){const line=document.createElement('div');line.className='pae-chain-line-h';line.style.top=y/data.rowIndices.length*100+'%';fragment.append(line);}
+    }
+    el.replaceChildren(fragment);
+    el.hidden=!lines||!session.dividers;
+    toggle.hidden=!lines;
+    toggle.setAttribute('aria-pressed',String(session.dividers));
+    return lines;
+  }
   function paint(session,data){
     const root=session.root,canvas=root.querySelector('#pae-canvas'),h=data.rowIndices.length,w=data.colIndices.length,ctx=canvas.getContext('2d');canvas.width=w;canvas.height=h;
     let max=session.spec.max||cache.colorMax;
@@ -88,8 +113,9 @@
     const exact=data.method==='exact';root.querySelector('#pae-mode-label').textContent=exact?'局部原始矩阵':`${h} × ${w} 采样预览`;
     root.querySelector('#pae-overview').hidden=!exact;
     root.querySelector('#pae-color-max').textContent=`${Number(max.toPrecision(4))} Å`;
+    const lines=paintOverlay(session,data);
     const range=`行 ${data.rowIndices[0]+1}–${data.rowIndices.at(-1)+1} / 列 ${data.colIndices[0]+1}–${data.colIndices.at(-1)+1}`;
-    root.querySelector('#pae-method-note').textContent=(exact?`${range}。逐格保留原始值。`:'每像素取对应区间中心的原始点；不是区间平均，细小区域可能未被采样。点击图中位置可读取附近原始窗口。')+(session.spec.max?'':` 色标上限来自已加载预览（${Number(max.toPrecision(4))} Å），不代表完整矩阵最大值。`);
+    root.querySelector('#pae-method-note').textContent=(exact?`${range}。逐格保留原始值。`:'每像素取对应区间中心的原始点；不是区间平均，细小区域可能未被采样。点击图中位置可读取附近原始窗口。')+(session.spec.max?'':` 色标上限来自已加载预览（${Number(max.toPrecision(4))} Å），不代表完整矩阵最大值。`)+(lines?` 链边界线画在链 ID 变化的采样/窗口索引之间（ChimeraX dividerLines 惯例），可能遮挡个别链末端残基；采样下短链边界可能未被显示，可点「链边界」切换。`:'');
     root.querySelector('#pae-tooltip').textContent=exact?`${range} · 移动指针查看原始值`:'移动指针查看实际采样点';
     session.data=data;
   }
@@ -98,9 +124,10 @@
   function mount(result){
     stop();const root=document.getElementById('pae-panel');if(!root)return;const s=spec(result);if(!s.available)return;
     if(!cache||cache.key!==s.key)cache={key:s.key,preview:null,tile:null,colorMax:null};
-    const session={root,spec:s,request:0,controller:null,data:null,generation};active=session;
+    const session={root,spec:s,request:0,controller:null,data:null,generation,dividers:true};active=session;
     root.querySelector('#pae-load-preview').addEventListener('click',()=>load(session,{maxSize:previewSize(root)}));
     root.querySelector('#pae-overview').addEventListener('click',()=>{session.controller?.abort();session.request++;busy(session,false);if(cache.preview)paint(session,cache.preview);else load(session,{maxSize:previewSize(root)});});
+    root.querySelector('#pae-dividers').addEventListener('click',()=>{session.dividers=!session.dividers;if(session.data)paintOverlay(session,session.data);});
     root.querySelector('#pae-window-form').addEventListener('submit',event=>{event.preventDefault();try{load(session,windowOptions(session));}catch(error){showError(session,error.message);}});
     root.querySelectorAll('[data-pae-move]').forEach(button=>button.addEventListener('click',()=>{const size=Number(root.querySelector('#pae-window-size').value),vertical=['up','down'].includes(button.dataset.paeMove),input=root.querySelector(vertical?'#pae-row':'#pae-col'),sign=['up','left'].includes(button.dataset.paeMove)?-1:1;input.value=Math.max(1,Math.min(vertical?s.rows:s.cols,Number(input.value)+sign*size));try{load(session,windowOptions(session));}catch(error){showError(session,error.message);}}));
     const canvas=root.querySelector('#pae-canvas');canvas.addEventListener('mousemove',event=>{const p=point(session,event);if(!p)return;root.querySelector('#pae-tooltip').textContent=`${session.data.method==='exact'?'原始值':'原始采样点'} · 行 ${p.row+1} / 列 ${p.col+1} · ${p.value===null?'数据缺失':String(p.value)+' Å'}`;});

@@ -45,3 +45,7 @@
 .chain-conf-panel th,.chain-conf-panel td{padding:8px 17px;white-space:normal}
 .pae-interface-chips{display:flex;flex-wrap:wrap;gap:6px;padding:10px 17px 0;border-top:1px dashed #e4e9e1}
 .pae-interface-chip{font-size:10px;color:#5c7461;background:#f1f5ee;border:1px solid #dde7d4;border-radius:5px;padding:3px 8px}
+.pae-plot-area{grid-column:2;position:relative}
+.pae-chain-overlay{position:absolute;inset:0;pointer-events:none}
+.pae-chain-line-v{position:absolute;top:0;bottom:0;width:1px;background:rgba(255,255,255,.85);box-shadow:0 0 0 .5px rgba(18,40,48,.4)}
+.pae-chain-line-h{position:absolute;left:0;right:0;height:1px;background:rgba(255,255,255,.85);box-shadow:0 0 0 .5px rgba(18,40,48,.4)}

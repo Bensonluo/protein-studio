@@ -149,3 +149,11 @@
 验证计划：语法检查、排名模型契约 15/15（+1）、着色 vm 10、workspace-ux 5 套件、隔离 8973 分数契约 12/12、批次回归 9/9、深链 4/4、冒烟 12（8974）、根 tests、campaign_client、全后端 327 OK（1 按需 skip）。演示服务用后即停；主服务 8765 未动；无部署。
 
 验证结果：九层链路全绿——语法 OK、排名模型契约 15/15、着色 vm 10、workspace-ux 5 套件、隔离 8973 分数 12/12、批次回归 9/9、深链 4/4、冒烟 12（8974）、根 tests OK、campaign_client、全后端 327 OK（1 按需 skip）。初跑 T8 因 axis_data 守卫落盘晚于进程导入按旧字节码失败（#16 引入的 None 崩溃，be-tests 套件发现、主线程修复并定向复验 4/4），守卫在位后全链重跑取证通过。安全 grep 全 diff 干净（新增插值均 escapeHTML）。演示服务用后即停；主服务 8765 未动；无部署。
+
+## 2026-10-24 PAE 链边界分隔线迭代
+
+按 ChimeraX `alphafold pae` dividerLines 默认行为（多链 PAE 图画链起止线，文档如实注明可能遮挡链末端残基、可关闭）、PAE Viewer webserver 链标签分段与 EBI Training 链间子块解读三源口径，为 PAE 查看器补链边界分隔线：描述符携带 axisMetadata.token_chain_ids（axisKind=token 且与矩阵两轴对齐、非空字符串≤128）时，采样预览与精确窗口在相邻索引链 ID 变化处画 1px DOM 分隔线（百分比定位，不碰画布像素，可断言可访问）；窗口内单一链、链数超 2..128 或无 token 元数据均不画、不猜链序；默认开启可一键切换（aria-pressed），方法注照录 ChimeraX 遮挡提示与采样短链可能未显示。契约 13→16 项：预览边界与测试侧独立重算逐像素对齐、64×64 瓦片跨界恰 50%、单链窗口隐藏、无元数据不渲染。改动文件：web/pae-viewer.js、web/styles.css、tests/browser_pae_lazy.cjs、README.md。
+
+验证计划：语法、PAE 契约 16/16、排名模型契约 15/15、workspace-ux 5 套件、隔离 8973 分数 12/12、批次回归 9/9、深链 4/4、冒烟 12（8974）、根 tests、campaign_client、全后端 327 OK（1 按需 skip）。演示服务用后即停；主服务 8765 未动；无部署。
+
+验证结果：九层链路全绿——语法、PAE 契约 16/16（+3）、排名模型契约 15/15、workspace-ux 5 套件、隔离 8973 分数 12/12、批次回归 9/9、深链 4/4、冒烟 12（8974）、根 tests、campaign_client、全后端 327 OK（1 按需 skip）。探针几何复核分隔线与画布颜色跃变像素精确对齐（±0.5px、1px 线宽、深浅块均可见）。安全 grep 干净。演示服务 8973/8974 用后即停；主服务 8765 未动；无部署。
