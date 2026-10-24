@@ -58,3 +58,8 @@
 .pae-contact-row{background:#f4f7f2;border:1px solid #e0e8da;border-radius:5px;padding:3px 8px}
 .residue.pae-hover-row{outline:2px solid #22c4cf;outline-offset:-1px;background:rgba(34,196,207,.28);border-radius:2px}
 .residue.pae-hover-col{outline:2px solid #f0863c;outline-offset:-1px;background:rgba(240,134,60,.28);border-radius:2px}
+.pae-selection{position:absolute;border:1px solid #22c4cf;background:rgba(34,196,207,.14);pointer-events:none;box-sizing:border-box}
+.pae-selection-note{margin-top:4px;font-size:10px;color:#40554a;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.residue.pae-sel-row{outline:2px solid #f0863c;outline-offset:-1px;background:rgba(240,134,60,.22);border-radius:2px}
+.residue.pae-sel-col{outline:2px solid #22c4cf;outline-offset:-1px;background:rgba(34,196,207,.22);border-radius:2px}
+.residue.pae-sel-overlap{outline:2px solid #c94fc0;outline-offset:-1px;background:rgba(201,79,192,.22);border-radius:2px}

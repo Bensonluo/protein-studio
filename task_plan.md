@@ -395,3 +395,14 @@
 
 验证计划：同 #22 十层链。
 验证结果：首链 t9 红——browser_confidence_color_ux 的 vm stub viewer 缺 removeAllShapes（测试基建落后于 #23 新 API 调用，非产品 bug），补 stub 一行 no-op 后按纪律杀链全量重跑；重跑 t1–t10 全绿（全量后端 331 OK / 1 skip / 71.1s；browser_ranked_models 19 项首跑即绿；workspace-ux 5 套件绿）；手动 diff-scoped SEC-GREP CLEAN。另如实记录：新内核测试 2 处预期错（6.5 Å 邻居也成线、9.5 Å 处 PAE=12 对不计接触）由红跑纠正，内核行为始终正确。
+
+## 2026-10-25 持续迭代：PAE 拖框矩形选区
+
+#23 后继续补齐 PAE 图交互。依据六源：PAE Viewer NAR 全文（PMC10320053——拖框选取打分残基 x 段青色、对齐残基 y 段橙色、两段重叠区域洋红，选中区下方数值化汇报）；ChimeraX Recipes Mean PAE 页（拖框读「Mean PAE 5.97 in dragged box /A:139-176 aligned to /A:2-19」句式）；ProteinIQ（PAE 矩阵框选均值读数）；Lahuta 博客（ChimeraX 拖框选区操作实践）；Jalview（框选联动惯例）；AFDB 批评源（同一结构两区间同色不可区分——三色方案的动机）。设计决策：拖框 >4px 才成框、纯点击保持 #16 窗口契约；均值只统计非空格（null 不计入，不猜）；采样视图读数标注（采样格）且不联动 3D（axisKind==='residue' 或 inline 对齐才联动，与 #20/#22 同标准）；Escape 与清除按钮双退出；仅主模型 + 非 Surface。
+
+1. [完成] web/pae-viewer.js：模板加 #pae-selection 覆盖层 + #pae-selection-note；mount 拖拽机件（cell() 像素→格坐标、hideDragOverlay/paintDrag 百分比定位、clearSelection、finalizeSelection 原始索引区间 d.rowIndices[y] 映射 + 非空格均值 (sum/count).toFixed(2) + 清除选区按钮 + 对齐时 window.setPAESelection({rows,cols})）；mouseup 二分（wasDrag→finalize；否则原 click 行为窗口加载）；mousemove 拖拽中跳过 hover；stop() 清联动与选区；document Escape 键清选区。
+2. [完成] web/app.js：模块级 paeSelection + window.setPAESelection（key 去重；序列条 pae-sel-row/pae-sel-col/pae-sel-overlap 三类管理，先算行内交叉再分类）；applyViewerStyle 选区块（主模型 + 非 surface 守卫；仅行残基橙 #f0863c、仅列残基青 #22c4cf、重叠洋红 #c94fc0 球体 r=1.2）；styles.css 覆盖层 + note + 三类描边。顺带修正 #22 颜色反转：悬停行改橙、列改青（PAE Viewer 原文：x=打分=青、y=对齐=橙）。
+3. [完成] 测试 browser_pae_lazy（18→19 项）：悬停 3D 断言双色对调 + 检查语更正；新增拖框测试（3×3 fixture pae 1-9；mouse.down 于 (2.5/3, 0.5/3) → move 至 (1.5/3) steps=4 → up；note 正则 选区 行 1–2（对齐） × 列 3–3（打分） · 2 格 平均 PAE 4.50 Å；序列条三类计数；3D resi1,2 橙 + resi3 青；Escape + 移出后 note 隐藏、类清零、球体清空）。README 悬停句色向更正 + 拖框功能句。
+
+验证计划：同 #23 十层链。
+验证结果：pae_lazy 19/19 首跑即绿；十层链 t1–t10 全绿（全量后端 331 OK / 1 skip / 72.4s）；手动 diff-scoped SEC-GREP CLEAN。诚实记录：本轮零红跑；主要价值点是自审发现并修正 #22 的双色映射反转（所引论文原文 x=打分段=青、y=对齐段=橙，实现曾相反），修正覆盖 app.js/pae_lazy 断言/README 三处。

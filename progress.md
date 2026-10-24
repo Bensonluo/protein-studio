@@ -195,3 +195,9 @@
 - 研究：ChimeraX alphafold contacts（<8 Å 画线按 PAE 着色、无 PAE 过滤）+ CASP RR 8 Å + LIVIA cLIR + AF3 contact_probs 工具（四源）；距离口径 Cα（单 CA 存储）。
 - 实现：内核 lines=True（8 Å 对 + min-PAE + 2048 截断，顺带根治 #20 None-PAE TypeError）；attach/server 落 interfaceLines；store 剥离；前端 toggle + addCylinder 五档蓝→黄 + removeAllShapes 重建。
 - 验证：首链 t9 红（vm stub 缺新 API，测试基建问题）→ 修 stub 重跑 10/10 全绿（后端 331 OK/1 skip；ranked 19 项首跑即绿）；SEC-GREP CLEAN。English commit: feat: PAE-colored interface contact lines。
+
+### 迭代 #24（2026-10-25）：PAE 拖框矩形选区与均值读数
+
+- 研究：PAE Viewer NAR 全文（拖框选区：打分 x 段青色、对齐 y 段橙色、重叠洋红；框下均值读数）+ ChimeraX Recipes Mean PAE（「Mean PAE 5.97 in dragged box /A:139-176 aligned to /A:2-19」句式）+ Jalview/EBI AFDB 联动生态（六源）；纯点击保留 #16「读局部窗口」契约。
+- 实现：pae-viewer 拖拽机件（mousedown/>4px 阈值/mouseup 二分：成框→finalizeSelection、纯点击→原窗口加载）；finalizeSelection 原始索引区间 + 非空格均值 + （采样格）标注 + 清除选区按钮 + setPAESelection 仅对齐时联动；Escape 全局键 + stop() 清选区；app.js 三色序列条类 + applyViewerStyle 三色球体（仅行橙/仅列青/重叠洋红，r=1.2）。自审纠错：#22 悬停双色映射与 PAE Viewer 原文相反（打分列应青、对齐行应橙），本轮一并修正（app.js + pae_lazy 断言 + README 三处）。
+- 验证：pae_lazy 19/19 首跑即绿（含 mouse.down→move→up 拖拽模拟、均值 4.50 Å 精确断言、Escape 清除、3D 三色原子）；十层链 t1–t10 全绿（全量后端 331 OK/1 skip/72.4s，#24 未动后端）；SEC-GREP 手动 diff-scoped CLEAN。English commit: feat: PAE drag-box selection with mean readout and linked ranges。

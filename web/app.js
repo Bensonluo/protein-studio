@@ -352,10 +352,10 @@ function interfaceContactSelection() {
   }
   return groups.size?[...groups].map(([chain,set])=>({chain,resi:[...set]})):null;
 }
-let paeHoverPair=null;
+let paeHoverPair=null,paeSelection=null;
 // PAE-plot hover linkage (Jalview convention: mousing over the matrix
 // highlights the row/col residues in every linked view; PAE Viewer colors the
-// scored row cyan and the aligned column orange). Only provably aligned axes
+// scored column cyan and the aligned row orange). Only provably aligned axes
 // link - token axes address model tokens, not residues, so they never guess.
 window.setPAEHover=pair=>{
   const key=pair?`${pair.row}|${pair.col}`:null;
@@ -365,6 +365,26 @@ window.setPAEHover=pair=>{
   if(paeHoverPair){
     document.querySelector(`[data-residue="${paeHoverPair.row}"]`)?.classList.add('pae-hover-row');
     document.querySelector(`[data-residue="${paeHoverPair.col}"]`)?.classList.add('pae-hover-col');
+  }
+  applyViewerStyle();
+};
+// PAE-plot rectangular selection (PAE Viewer convention): the scored column
+// range is cyan, the aligned row range orange, and their overlap magenta.
+window.setPAESelection=ranges=>{
+  const key=ranges?`${ranges.rows[0]}|${ranges.rows[1]}|${ranges.cols[0]}|${ranges.cols[1]}`:null;
+  if(key===null&&paeSelection===null)return;
+  paeSelection=ranges?{key,...ranges}:null;
+  document.querySelectorAll('.residue.pae-sel-row,.residue.pae-sel-col,.residue.pae-sel-overlap').forEach(el=>el.classList.remove('pae-sel-row','pae-sel-col','pae-sel-overlap'));
+  if(paeSelection){
+    const [r0,r1]=paeSelection.rows,[c0,c1]=paeSelection.cols;
+    for(let index=Math.min(r0,c0);index<=Math.max(r1,c1);index++){
+      const el=document.querySelector(`[data-residue="${index}"]`);
+      if(!el)continue;
+      const inRows=index>=r0&&index<=r1,inCols=index>=c0&&index<=c1;
+      if(inRows&&inCols)el.classList.add('pae-sel-overlap');
+      else if(inRows)el.classList.add('pae-sel-row');
+      else el.classList.add('pae-sel-col');
+    }
   }
   applyViewerStyle();
 };
@@ -413,7 +433,15 @@ function applyViewerStyle() {
   if(paeHoverPair&&state.style!=='surface'&&viewerModelInfo().index===0){
     const residues=getResidues();
     const mark=(index,color)=>{const residue=residues[index];if(!residue)return;const chain=String(residue.chain??'').trim()||'A',number=Number(residue.residueNumber);if(!Number.isInteger(number))return;v.addStyle({chain,resi:number},{sphere:{radius:1.4,color},stick:{radius:.14,color}});};
-    mark(paeHoverPair.row,'#22c4cf');mark(paeHoverPair.col,'#f0863c');
+    mark(paeHoverPair.row,'#f0863c');mark(paeHoverPair.col,'#22c4cf');
+  }
+  if(paeSelection&&state.style!=='surface'&&viewerModelInfo().index===0){
+    const residues=getResidues();
+    const mark=(index,color)=>{const residue=residues[index];if(!residue)return;const chain=String(residue.chain??'').trim()||'A',number=Number(residue.residueNumber);if(!Number.isInteger(number))return;v.addStyle({chain,resi:number},{sphere:{radius:1.2,color}});};
+    const [r0,r1]=paeSelection.rows,[c0,c1]=paeSelection.cols;
+    for(let index=r0;index<=r1;index++)if(index<c0||index>c1)mark(index,'#f0863c');
+    for(let index=c0;index<=c1;index++)if(index<r0||index>r1)mark(index,'#22c4cf');
+    for(let index=Math.max(r0,c0);index<=Math.min(r1,c1);index++)mark(index,'#c94fc0');
   }
   // Contact lines are imperative shapes, not atom styles: cleared and redrawn
   // on every style application so toggles and view switches stay consistent.
