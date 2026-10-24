@@ -239,4 +239,22 @@ def parse_confidence(path: Path) -> dict:
         elif all(isinstance(row, list) and len(row) == n for row in matrix):
             if all(_number(x) is not None and float(x) >= 0 for row in matrix for x in row):
                 result['pae'] = [[float(x) for x in row] for row in matrix]
+    # ⟨PAE⟩_int per unordered chain pair (Zhu et al. 2023): mean of both
+    # directed inter-chain blocks. Only with token_chain_ids aligned to the
+    # matrix axes; never guessed from structure order.
+    chain_ids = data.get('token_chain_ids')
+    if 'pae' in result and isinstance(chain_ids, list) and len(chain_ids) == len(result['pae']) \
+            and all(isinstance(x, str) and x and len(x) <= 128 for x in chain_ids):
+        if 2 <= len(set(chain_ids)) <= 64:
+            sums, counts = {}, {}
+            for i, first in enumerate(chain_ids):
+                row = result['pae'][i]
+                for j, second in enumerate(chain_ids):
+                    if first == second:
+                        continue
+                    key = (first, second) if first < second else (second, first)
+                    sums[key] = sums.get(key, 0.0) + row[j]
+                    counts[key] = counts.get(key, 0) + 1
+            result['interfacePae'] = [{'a': a, 'b': b, 'mean': sums[(a, b)] / counts[(a, b)]}
+                                      for (a, b) in sorted(sums)]
     return result

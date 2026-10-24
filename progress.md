@@ -141,3 +141,11 @@
 按 AF DB FAQ、PDBe-KB 查看器与 PyMOL 三方惯例，为三维查看器补齐低置信区域显示控制：工具栏循环开关 关 → 淡化 pLDDT<70（0.18 不透明度）→ 隐藏 <50（空样式移除表示）；Surface 模式或无逐残基置信度时如实提示且不切换。实现依据探针实证的 3Dmol 对象 spec 语义（函数选择器被忽略、v.hide 不存在）；两次截图字节相同后按规程插桩诊断，确认状态变化正确、差异属 headless WebGL 画布导出读旧缓冲的捕获限制。
 
 验收：排名模型契约 14/14（+1 三态循环逐原子断言）；着色 vm 10；workspace-ux 5 套件；隔离 8973 分数契约 12/12、批次回归 9/9、深链 4/4；冒烟 12（8974）；根 tests OK；campaign_client 通过；全后端 326 OK（1 按需 skip，77.3s）。演示服务 8973/8974 用后即停；主服务 8765 未动；无部署。
+
+## 2026-10-24 链对界面 PAE 均值迭代
+
+按 Zhu et al. 2023 Bioinformatics（⟨PAE⟩_int 界面残基对 PAE 均值，AF-Multimer 评估口径，https://doi.org/10.1093/bioinformatics/btad352）、ipSAE 预印本（Park et al. bioRxiv 2023，按链对从 PAE 矩阵导出界面分数，https://www.biorxiv.org/content/10.1101/2023.09.20.558044v1）与 EBI Training PAE 解读（PAE 为残基对相对位置置信度，链间非对角块低值即界面排布可靠）三源口径，为多链任务补齐链对界面置信度：索引期对已发布 float64 PAE 二进制单次流式逐行读取，按无序链对同时累计两个方向链间块（PAE(x,y)≠PAE(y,x)）的均值，产出 O(chains²) 标量 result.interfacePae（2..64 条不同链、矩阵 ≤4M 单元，超限如实跳过并警告，非有限值跳过）；parsers 内联 JSON 路径同口径镜像（链 ID 与矩阵对齐才产出）；store 列表摘要剔除、详情保留（与 chainPtm 同策略）；前端链间界面置信度面板内逐链对标签展示（A↔B 界面 PAE 3.2 Å），tooltip 注明 ⟨PAE⟩_int 双向块均值口径，PAE 非对称时方向差异以矩阵为准。后端新增 test_interface_pae_means_follow_zhu_2023_convention（全测 327 项），浏览器契约 14→15 项。改动文件：backend/result_artifacts.py、backend/parsers.py、backend/store.py、web/app.js、web/styles.css、backend/tests/test_result_artifacts.py、backend/tests/test_api.py、tests/browser_ranked_models.cjs、README.md。
+
+验证计划：语法检查、排名模型契约 15/15（+1）、着色 vm 10、workspace-ux 5 套件、隔离 8973 分数契约 12/12、批次回归 9/9、深链 4/4、冒烟 12（8974）、根 tests、campaign_client、全后端 327 OK（1 按需 skip）。演示服务用后即停；主服务 8765 未动；无部署。
+
+验证结果：九层链路全绿——语法 OK、排名模型契约 15/15、着色 vm 10、workspace-ux 5 套件、隔离 8973 分数 12/12、批次回归 9/9、深链 4/4、冒烟 12（8974）、根 tests OK、campaign_client、全后端 327 OK（1 按需 skip）。初跑 T8 因 axis_data 守卫落盘晚于进程导入按旧字节码失败（#16 引入的 None 崩溃，be-tests 套件发现、主线程修复并定向复验 4/4），守卫在位后全链重跑取证通过。安全 grep 全 diff 干净（新增插值均 escapeHTML）。演示服务用后即停；主服务 8765 未动；无部署。

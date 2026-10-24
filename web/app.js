@@ -112,12 +112,18 @@ function renderChainConfidence(job,result) {
   // AF3 Server convention (EBI interpreting-results guide / AF3 output.md):
   // multichain predictions carry per-chain pTM and per-chain average interface
   // ipTM (chain_iptm). Averages can mask asymmetric interfaces, so the note
-  // points at the PAE view instead of over-trusting the mean.
+  // points at the PAE view instead of over-trusting the mean. Interface chips
+  // add ⟨PAE⟩_int per chain pair (Zhu et al. 2023): the mean over inter-chain
+  // residue pairs with both directed PAE blocks averaged.
   const chains=job?.chains||[], ptm=result?.chainPtm, iptm=result?.chainIptm;
-  if(chains.length<2||(!Array.isArray(ptm)&&!Array.isArray(iptm)))return '';
-  const rows=chains.map((c,i)=>{const p=ptm?.[i],t=iptm?.[i],band=typeof campaignScoreBand==='function'?campaignScoreBand(t):null;
-    return `<tr><td class="mono">${escapeHTML(c.id||String.fromCharCode(65+i))}</td><td>${Number.isFinite(p)?p.toFixed(2):'—'}</td><td>${band?`<span class="campaign-score-band ${band}">ipTM ${t.toFixed(2)}</span>`:Number.isFinite(t)?t.toFixed(2):'—'}</td></tr>`;}).join('');
-  return `<section class="panel analysis-panel chain-conf-panel"><div class="panel-heading"><h3>${icon('shield')}链间界面置信度</h3><span class="subtle">CHAIN CONFIDENCE</span></div><div class="analysis-title-note">逐链 pTM 与平均界面 ipTM · 均值为 AF3 chain_iptm 口径，非对称界面建议结合 PAE 判断</div><div class="table-scroll"><table><thead><tr><th>链</th><th>pTM</th><th>平均界面 ipTM</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
+  const iface=Array.isArray(result?.interfacePae)?result.interfacePae.filter(p=>p&&typeof p.a==='string'&&typeof p.b==='string'&&Number.isFinite(p.mean)):[];
+  const hasTable=chains.length>=2&&(Array.isArray(ptm)||Array.isArray(iptm));
+  if(!hasTable&&!iface.length)return '';
+  const rows=hasTable?chains.map((c,i)=>{const p=ptm?.[i],t=iptm?.[i],band=typeof campaignScoreBand==='function'?campaignScoreBand(t):null;
+    return `<tr><td class="mono">${escapeHTML(c.id||String.fromCharCode(65+i))}</td><td>${Number.isFinite(p)?p.toFixed(2):'—'}</td><td>${band?`<span class="campaign-score-band ${band}">ipTM ${t.toFixed(2)}</span>`:Number.isFinite(t)?t.toFixed(2):'—'}</td></tr>`;}).join(''):'';
+  const table=hasTable?`<div class="table-scroll"><table><thead><tr><th>链</th><th>pTM</th><th>平均界面 ipTM</th></tr></thead><tbody>${rows}</tbody></table></div>`:'';
+  const chips=iface.length?`<div class="pae-interface-chips">${iface.map(pair=>`<span class="pae-interface-chip" title="⟨PAE⟩_int：链对间残基对的 PAE 双向块均值（Zhu et al. 2023 口径）；PAE 非对称，均值已抹平方向差异，具体方向以 PAE 矩阵为准">${escapeHTML(pair.a)}↔${escapeHTML(pair.b)} 界面 PAE ${pair.mean.toFixed(1)} Å</span>`).join('')}</div>`:'';
+  return `<section class="panel analysis-panel chain-conf-panel"><div class="panel-heading"><h3>${icon('shield')}链间界面置信度</h3><span class="subtle">CHAIN CONFIDENCE</span></div>${table}${chips}<div class="analysis-title-note">逐链 pTM 与平均界面 ipTM · 均值为 AF3 chain_iptm 口径，非对称界面建议结合 PAE 判断</div></section>`;
 }
 function renderConfidence(result) {
   const sampleCurve=viewerModelInfo().index>0?state.modelCurve:null;

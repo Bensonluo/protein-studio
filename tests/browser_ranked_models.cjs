@@ -22,7 +22,7 @@ const detail={
       {rank:1,name:'sample-0',structureUrl:'/api/jobs/job-m/artifact?name=sample-0.pdb',structureFormat:'pdb',meanPlddt:88.1,ptm:0.8,iptm:0.85,rankingScore:0.842},
       {rank:2,name:'sample-1',structureUrl:'/api/jobs/job-m/artifact?name=sample-1.pdb',structureFormat:'pdb',meanPlddt:71.4,ptm:0.6,iptm:0.62,rankingScore:0.610},
     ],artifacts:[{name:'scores.json',url:'/api/jobs/job-m/artifact?name=scores.json',size:2048}]}},
-  'job-r':{...jobs.find(j=>j.id==='job-r'),result:{structureUrl:'/api/jobs/job-r/structure',structureFormat:'pdb',sequenceLength:6,meanPlddt:80.2,chainPtm:[0.82,0.55],chainIptm:[0.71,0.48],plddt:[],residues:[],provenance:{mode:'reference'},
+  'job-r':{...jobs.find(j=>j.id==='job-r'),result:{structureUrl:'/api/jobs/job-r/structure',structureFormat:'pdb',sequenceLength:6,meanPlddt:80.2,chainPtm:[0.82,0.55],chainIptm:[0.71,0.48],interfacePae:[{a:'A',b:'B',mean:3.2}],plddt:[],residues:[],provenance:{mode:'reference'},
     rankedModels:[{rank:1,name:'Polyubiquitin-B',structureUrl:'/api/jobs/job-r/artifact?name=afdb.pdb',structureFormat:'pdb',meanPlddt:80.2}],artifacts:[]}},
 };
 const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.stringify(data)});
@@ -66,6 +66,7 @@ const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.
   assert.doesNotMatch(rank1Panel,/B 因子/);
   checks.push('Model picker lists every ranked sample with its AF3-style rank, pLDDT and ranking score, rank 1 selected by default');
   assert.equal(await page.locator('.chain-conf-panel').count(),0);
+  assert.equal(await page.locator('.pae-interface-chip').count(),0);
   const modelTable=page.locator('section.panel:has-text("模型与结果制品") tbody');
   const headers=await page.locator('section.panel:has-text("模型与结果制品") thead th').allTextContents();
   assert.ok(headers.includes('排名分'));
@@ -158,7 +159,10 @@ const json=(data,status=200)=>({status,contentType:'application/json',body:JSON.
   assert.equal(await chainConf.locator('.campaign-score-band.gray').count(),1);
   assert.equal(await chainConf.locator('.campaign-score-band.low').count(),1);
   assert.match(await chainConf.locator('.analysis-title-note').textContent(),/非对称界面建议结合 PAE/);
+  assert.equal(await chainConf.locator('.pae-interface-chip').count(),1);
+  assert.match(await chainConf.locator('.pae-interface-chip').textContent(),/A↔B 界面 PAE 3\.2 Å/);
   checks.push('Per-chain pTM and average interface ipTM render for multichain jobs, banded by the ipTM thresholds (AF3 Server convention)');
+  checks.push('Interface PAE means per chain pair shown as chips (⟨PAE⟩_int, Zhu et al. 2023 convention, both directed blocks averaged)');
   checks.push('Single-model reference jobs keep the plain viewer without a picker or per-row view actions');
   await page.locator('[data-view="jobs"]').click();
   await page.locator('[data-job-id="job-m"] .row-action').click();

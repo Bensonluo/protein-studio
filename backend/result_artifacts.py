@@ -326,6 +326,16 @@ def stream_confidence(path, root=None, *, build_pae=False, axis_kind='unknown', 
                 axis_kind, axis_data = 'token', axes
             descriptor = _binary_descriptor(temporary, root, path, reader.digest.hexdigest(), before,
                                             (row_count, column_count), axis_kind, axis_data, minimum, maximum, cancelled)
+            chain_ids = axis_data.get('token_chain_ids') if axis_kind == 'token' and axis_data else None
+            distinct = len(set(chain_ids)) if chain_ids else 0
+            if distinct >= 2:
+                # Interface summary stays an O(chains²) record like chainPtm;
+                # oversized complexes keep the raw matrix only (honest skip).
+                if distinct <= MAX_CHAINS and row_count * column_count <= 4_000_000:
+                    result['interfacePae'] = _interface_pae_means(Path(descriptor['storagePath']), chain_ids)
+                else:
+                    result.setdefault('warnings', []).append(
+                        'Interface PAE summary skipped (chains or matrix beyond summary limits); raw JSON remains downloadable.')
             result.update(paeArtifact=descriptor, pae=None, maxPae=maximum)
             if cells <= INLINE_CELLS:
                 result['pae'] = read_pae(descriptor, root, row_start=0, col_start=0, rows=row_count, cols=column_count)['values']
@@ -460,6 +470,42 @@ def _validate_descriptor(descriptor, root):
     if source.stat().st_size != descriptor.get('sourceBytes') or _stat(source) != descriptor.get('sourceStat'):
         raise ValueError('Original confidence source changed after publication.')
     return path
+
+
+def _interface_pae_means(path, chains):
+    """⟨PAE⟩_int per unordered chain pair (Zhu et al. 2023, AF-Multimer
+    evaluation): mean of both directed inter-chain blocks, streamed row by row
+    from the row-major little-endian float64 binary so memory stays O(chains²).
+    Non-finite cells are skipped; pairs without usable cells are omitted."""
+    size = len(chains)
+    columns = {}
+    for col, chain in enumerate(chains):
+        columns.setdefault(chain, []).append(col)
+    sums, counts = {}, {}
+    with path.open('rb') as stream:
+        for row, chain in enumerate(chains):
+            buffer = array('d')
+            buffer.frombytes(stream.read(size * 8))
+            if len(buffer) != size:
+                raise ValueError('PAE binary ended early while summarizing interfaces.')
+            if sys.byteorder != 'little':
+                buffer.byteswap()
+            for other, indices in columns.items():
+                if other == chain:
+                    continue
+                key = (chain, other) if chain < other else (other, chain)
+                total, count = sums.get(key, 0.0), counts.get(key, 0)
+                for index in indices:
+                    value = buffer[index]
+                    if math.isfinite(value):
+                        total += value
+                        count += 1
+                sums[key], counts[key] = total, count
+    summary = []
+    for (a, b) in sorted(sums):
+        if counts[(a, b)]:
+            summary.append({'a': a, 'b': b, 'mean': sums[(a, b)] / counts[(a, b)]})
+    return summary
 
 
 def read_pae(descriptor, root, *, max_size=256, row_start=None, col_start=None, rows=None, cols=None):

@@ -78,6 +78,26 @@ class ResultArtifactsTests(unittest.TestCase):
         self.assertEqual(parsed['chainIptm'], [.7, .3])
         self.assertNotIn('chainPtm', parsers.parse_confidence(self.source({'chain_ptm': [.9, 1.4]})))
 
+    def test_interface_pae_means_follow_zhu_2023_convention(self):
+        source = self.source({'pae': [[0, 2], [5, 0]], 'token_chain_ids': ['A', 'B']})
+        result = artifacts.stream_confidence(source, self.root, build_pae=True)
+        self.assertEqual(result['interfacePae'], [{'a': 'A', 'b': 'B', 'mean': 3.5}])
+        single = artifacts.stream_confidence(
+            self.source({'pae': [[0, 1], [2, 0]], 'token_chain_ids': ['A', 'A']}), self.root, build_pae=True)
+        self.assertNotIn('interfacePae', single)
+        self.assertNotIn('warnings', single)
+        many = [f'c{index}' for index in range(65)]
+        oversized = artifacts.stream_confidence(
+            self.source({'pae': [[0.0] * 65] * 65, 'token_chain_ids': many}), self.root, build_pae=True)
+        self.assertNotIn('interfacePae', oversized)
+        self.assertTrue(any('Interface PAE summary skipped' in warning for warning in oversized['warnings']))
+        parsed = parsers.parse_confidence(self.source({'pae': [[0, 2], [5, 0]], 'token_chain_ids': ['A', 'B']}))
+        self.assertEqual(parsed['interfacePae'], [{'a': 'A', 'b': 'B', 'mean': 3.5}])
+        self.assertNotIn('interfacePae', parsers.parse_confidence(
+            self.source({'pae': [[0, 2], [5, 0]], 'token_chain_ids': ['A', 'B', 'C']})))
+        self.assertNotIn('interfacePae', parsers.parse_confidence(
+            self.source({'pae': [[0, 2], [5, 0]], 'token_chain_ids': [1, 2]})))
+
     def test_invalid_matrices_never_publish_or_invent_values(self):
         bad = [[], [[0, 1]], [[0], [2, 0]], [[0, None], [1, 0]], [[0, True], [1, 0]],
                [[0, -1], [1, 0]], [[0, '1'], [1, 0]], [[[0], 1], [1, 0]]]

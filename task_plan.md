@@ -290,3 +290,18 @@
 4. [完成] 契约 +1（14 项）：关→淡化→隐藏→关 三态循环的逐原子样式断言 + 无置信度任务 toast 不切换。
 
 本轮：语法检查、排名模型契约 14/14（+1 低置信切换）、着色 vm 10 检查、workspace-ux 离线 5 套件、隔离 8973 分数契约 12/12、批次回归 9/9、深链端到端 4/4、冒烟 12 检查（8974）、根 tests OK、客户端通过、全后端 326 OK（1 按需 skip，77.3s）。纯前端展示层，无存储或 API 变更。下一轮候选：导入任务置信度对齐提示、PAE 界面子块均值。
+
+## 2026-10-24 持续迭代：链对界面 PAE 均值
+
+上轮候选落地。依据三源：Zhu et al. 2023 Bioinformatics（⟨PAE⟩_int = 链对间残基对的 PAE 均值，AF-Multimer 界面评估口径，https://doi.org/10.1093/bioinformatics/btad352）、ipSAE 预印本 Park et al. bioRxiv 2023（按链对从 PAE 矩阵导出界面分数，https://www.biorxiv.org/content/10.1101/2023.09.20.558044v1）、EBI Training「Interpreting AlphaFold results」PAE 页（PAE 为残基对相对位置的置信度，链间非对角块低值即界面相对排布可靠，https://www.ebi.ac.uk/training/online/courses/alphafold/inputs-and-outputs/evaluating-alphafolds-predicted-structures-using-confidence-scores/pae-a-measure-of-global-confidence-in-alphafold-predictions）。检查发现迭代 #14 的链间面板只有逐链 pTM / chain_iptm 标量，链对间的 PAE 界面块仍需逐格目测——补每对链的界面 PAE 均值。PAE(x,y)≠PAE(y,x)，均值对两个方向块同时累计（Zhu et al. 2023 口径）。
+
+1. [完成] result_artifacts._interface_pae_means：索引期对已发布 float64 PAE 二进制单次流式逐行读取（内存保持 O(chains²)），按无序链对累计两个方向链间块的均值产出 result.interfacePae；非有限值跳过、无可用单元的链对省略。
+2. [完成] 边界如实：仅 2..64 条不同链且矩阵 ≤4,000,000 单元时计算，超限跳过并附警告（单链任务不产出也不警告）；parsers.parse_confidence 内联 JSON 路径同口径镜像，token_chain_ids 与矩阵不对齐或链 ID 非字符串时不产出。
+3. [完成] store.list() 摘要剔除 $.result.interfacePae（与 pae / chainPtm 同策略），详情保留。
+4. [完成] 前端：链间界面置信度面板内逐链对标签（A↔B 界面 PAE 3.2 Å，.pae-interface-chip），tooltip 注明 ⟨PAE⟩_int 双向块均值口径，PAE 非对称时方向差异以矩阵为准。
+
+改动文件：backend/result_artifacts.py、backend/parsers.py、backend/store.py、web/app.js、web/styles.css、backend/tests/test_result_artifacts.py、backend/tests/test_api.py、tests/browser_ranked_models.cjs、README.md（工作流第 6 项一句话 + test:model-ui 计数 14→15 项）。
+
+验证计划：语法检查、排名模型契约 15/15（+1 界面 PAE 标签）、着色 vm 10 检查、workspace-ux 离线 5 套件、隔离 8973 分数契约 12/12、批次回归 9/9、深链端到端 4/4、冒烟 12 检查（8974）、根 tests OK、客户端通过、全后端 327 OK（1 按需 skip）。
+
+验证结果：全链路重跑九层全绿（23:21–23:24）：语法 OK；排名模型契约 15/15；着色 vm 10；workspace-ux 离线 5 套件 OK；隔离 8973 分数契约 12/12、批次回归 9/9、深链端到端 4/4；冒烟 12（8974）；根 tests OK；campaign_client 通过；全后端 327 OK（1 按需 skip）。如实记录：初跑 T8 红——axis_data 守卫修复落盘（约 23:16）晚于该进程导入时刻（23:15:56），进程按旧字节码跑出修复前同款 3 errors；守卫确认在位（result_artifacts.py:329，AF3 confidence 含 pae 无 token axes 时 axis_data 为 None 的 #16 引入缺陷，be-tests 子代理套件复现 + 主线程定向复验 4/4 修复）后整链重跑取证通过。
