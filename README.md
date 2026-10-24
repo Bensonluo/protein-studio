@@ -1,6 +1,6 @@
-# Foldspace · 蛋白结构预测工作台
+# Foldspace · 企业级蛋白结构预测与批量推理平台
 
-把序列提交、真实预测进程、结构与置信度解析、三维探索和结果交付连接起来的本地应用。参考 AlphaFold2 / AlphaFold3 的实际数据流程，接入 ColabFold，并采用 3Dmol.js 展示真实分子坐标。
+面向蛋白结构研究与候选筛选，连接序列与 MSA 准备、常驻模型执行、批量调度、科学分析和结果交付。通过持久化控制面与本地/远端 worker 协议组织计算，兼容 AlphaFold2、AlphaFold3 和 ColabFold。
 
 [腾讯云公开演示](https://benluo.art/foldspace/) · [作品集介绍](https://benluo.art/projects/protein-studio/)
 
@@ -33,6 +33,22 @@ PROTEIN_STUDIO_PYTHON=/path/to/python3.12 ./start.sh
 
 ## 已实现的工作流
 
+| 阶段 | 当前能力 | 工程重点 |
+|---|---|---|
+| 输入与准备 | FASTA/JSONL 流式导入、固定靶标筛选、链级 MSA/模板复用、MMseqs2 CPU/GPU 搜索 | 数据库与策略版本进入缓存身份；资源不足先等待 |
+| 调度与执行 | CPU 准备池 → 有界就绪缓冲 → resident worker → 验证交付 | 兼容性路由、目标租约、尝试编号、逐项哈希校验 |
+| 失败与恢复 | 暂停/续传/仅重试失败项、失联目标接管、旧尝试交付隔离 | 保留已完成结果，OOM 后由用户调整再重试 |
+| 结构分析 | 多采样排名、3D/pLDDT/PAE 联动、pTM/ipTM、ipSAE 与链间接触 | 验证结构/置信度对齐，保留来源与原始制品 |
+| 大结果与交付 | 文件化 PAE、按需窗口、结果筛选、JSONL/ZIP 下载 | 控制矩阵载入和导出内存，稳定任务深链 |
+| 运维与缓存 | 阶段事件、资源预算、节点状态、缓存扫描/隔离/恢复 | 活动任务引用保护与维护锁 |
+
+阅读入口：[批次与数据库](docs/database-and-batch-pipeline.md) · [常驻与混合执行](docs/hybrid-resident-pipeline.md) · [链级复用](docs/chain-reuse-design.md) · [大结果](docs/large-results.md) · [界面验收](docs/frontend-ux-review.md)
+
+<details>
+<summary>展开：输入、可视化、界面置信度及导入契约</summary>
+
+### 工作流与科学分析细节
+
 1. **提交**：单链或多链 FASTA、输入校验、引擎选择、种子、引擎对应的采样参数、recycles、队列优先级；多记录 FASTA 可选择作为独立批量任务。
 2. **执行**：持久化任务与 campaign 队列；legacy 模式调用单目标运行器，workers 模式由本地/远端 agent 拉取批次并复用 AF3 常驻模型进程；支持取消、超时和逐项失败记录。任务支持 `#job/{id}` 深链直开、选择跟随 URL 与浏览器前进/后退（AF DB / SWISS-MODEL 工作区稳定结果 URL 惯例）。
 3. **资源**：本地独占 GPU 组与认证的远端 worker；按引擎、参数、位置和实测后配置的目标长度上限分发，区分规划 16 卡与真实注册在线节点。
@@ -41,6 +57,9 @@ PROTEIN_STUDIO_PYTHON=/path/to/python3.12 ./start.sh
 6. **分析与交付**：序列联动、逐残基置信度曲线、PAE 热图数值查询、多链任务的链间界面置信度表（逐链 pTM 与平均界面 ipTM，AF3 chain_ptm / chain_iptm 口径，ipTM 按 EBI 阈值分带，附非对称界面需结合 PAE 的提示——AF3 Server / EBI 结果页惯例），每对链的界面残基 PAE 均值（⟨PAE⟩_int，Zhu et al. 2023 口径，双向块平均）与每对链的 ipSAE（Dunbrack 2025 Eq. 14-16 口径：逐对齐残基统计 PAE<10 Å 残基对的 TM 式均值、d0 随合格残基数缩放、取两方向最大，AlphaFold DB 已采用同口径展示）以标签展示在逐链置信度面板内，ipSAE 按 AFDB 解读分带（≥0.8 很高 / ≥0.7 较可信 / ≥0.6 谨慎 / <0.6 不可靠）着色，PAE 非对称时方向差异以矩阵为准；残基轴对齐的多链结果另附每对链的高置信界面接触清单（PAE<10 Å 且 Cα–Cα<15 Å、两方向取较低 PAE，AFDB ipSAE 对口径；ChimeraX alphafold interfaces 式按参与残基汇报，残基号为 1 起结构序号，PAE 行与残基未对齐或 token 轴（AF3 多 token 残基）时不猜测、不产出）；PAE 热图预览与局部窗口按 token 链 ID 变化绘制链边界分隔线（ChimeraX alphafold pae dividerLines 惯例：默认开启、可一键切换，线可能遮挡个别链末端残基，采样下短链边界可能未被显示）；结构与制品下载、"下载全部 zip"打包已注册制品（AF3 Server / ColabFold 的单档案交付惯例）、任务 JSON 导出、执行日志。任务列表（全部实验 / 最近任务）带置信度列：平均 pLDDT 按 AF DB 四带、ipTM 按 EBI 阈值显示分带徽标，未评分任务显示占位符（SWISS-MODEL 结果表逐模型质量分列、AF3 Server 按置信排名的列表惯例），全部实验表头可按平均 pLDDT 降序排序（BLAST 结果表分值列排序惯例，aria-sort 标注）。
 7. **导入**：上传本地 PDB / mmCIF，持久保存并进入同一分析界面。界面可同时导入 PAE、confidence 和 summary JSON，并选择实验 / 预测来源。导入的 pLDDT / PAE 与结构残基按索引对齐校验：维度不匹配时不挂接并附警告、原始 JSON 保留下载（ChimeraX alphafold pae 拒绝维度不匹配关联的惯例）。
 8. **恢复**：SQLite 保存任务与事件；resident campaign 按目标续租、校验回传并恢复失联未完成项，旧尝试不能覆盖新结果；legacy 单任务中断保留失败记录供重试。
+
+
+</details>
 
 ## 大批次与搜索数据库
 
@@ -190,4 +209,4 @@ tests/          浏览器端到端验证
 
 ### 前端功能与体验检查
 
-本轮提交、批次、结果视图与运维交互修复及验证记录见 [前端体验检查报告](docs/frontend-ux-review.md)。使用 `npm run test:workspace-ux` 运行隔离交互回归；`npm run test:workspace-ux-live` 只读检查当前服务。排名模型切换契约使用 `npm run test:model-ui`（模拟多采样 API，17 项，含"下载全部 zip"交付、任务列表置信度分带与排序、采样排名分对比条、链间界面置信度表、低置信区域淡化/隐藏切换、按采样置信度曲线与 `#job/{id}` 深链检查），逐残基着色函数回归在 `npm run test:workspace-ux` 的着色用例中。任务深链端到端契约使用 `npm run test:deeplink`（需 `STUDIO_URL` 指向隔离服务）。
+本轮提交、批次、结果视图与运维交互修复及验证记录见 [前端体验检查报告](docs/frontend-ux-review.md)。使用 `npm run test:workspace-ux` 运行隔离交互回归；`npm run test:workspace-ux-live` 只读检查当前服务。排名模型切换契约使用 `npm run test:model-ui`（模拟多采样 API，18 项，含"下载全部 zip"交付、任务列表置信度分带与排序、采样排名分对比条、链间界面置信度表、低置信区域淡化/隐藏切换、界面接触残基棍状高亮、按采样置信度曲线与 `#job/{id}` 深链检查），逐残基着色函数回归在 `npm run test:workspace-ux` 的着色用例中。任务深链端到端契约使用 `npm run test:deeplink`（需 `STUDIO_URL` 指向隔离服务）。

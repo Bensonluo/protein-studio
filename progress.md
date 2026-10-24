@@ -177,3 +177,9 @@
 - 研究：AFDB ipSAE 对口径（PAE<10 Å 且 Cα–Cα<15 Å、两方向较低 PAE）+ ChimeraX alphafold interfaces 参与残基输出形态（四源：AFDB FAQ、Dunbrack 2025、ProteinIQ、ChimeraX 文档+教程页）；Cα 口径恰与解析器单 CA 存储匹配，无需扩解析器；token 轴不猜对齐。
 - 实现：parsers.interface_contacts 纯内核（网格 O(n)、区间压缩、512 段截断）；result_artifacts._iter_pae_rows + attach_interface_contacts（engine 顶层 join）；server 导入路径同口径；store 剥离；前端 .pae-contact-row 渲染；自捕并修复 pairs 双计 bug。
 - 验证：十层链 t1–t10 全绿（全量后端 330 OK/1 skip；browser_ranked_models 17 项；campaign 12/12、9/9）；SEC-GREP CLEAN。English commit: feat: confident interface contact residues per chain pair。
+
+### 迭代 #21（2026-10-25）：3D 视图界面接触残基高亮
+
+- 研究：PyMOL show sticks, byres … within N of 惯例（四源：Medium 教程、Reddit 实践、pymol.org 官方 Selection Operator 表、InterfaceResidues 脚本）；3Dmol addStyle 官方核心 API 叠加式表示；仅主模型（采样是另一结构）。
+- 实现：#iface-toggle + interfaceContactSelection（区间钳制、整数 residueNumber 过滤、链分组）+ applyViewerStyle addStyle stick 强调色叠加 + surface 双守卫；测试 fixture 补 residueNumber（fallback 无残基号选不中原子），18 项断言含选中原子 style 断言与采样视图按钮缺席。
+- 验证：十层链 t1–t10 全绿（全量后端 330 OK/1 skip/74.0s；browser_ranked_models 18 项首跑即绿；campaign 12/12、9/9）；链内 SEC-GREP 假阴性已手动复扫 CLEAN。English commit: feat: interface contact residue highlight in 3D viewer。

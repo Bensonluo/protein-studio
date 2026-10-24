@@ -362,3 +362,13 @@
 
 验证计划：同 #19 十层链（STUDIO_URL 隔离服务器直接烘入脚本）。
 验证结果：t1–t10 全绿（test_result_artifacts+test_api 38 项、browser_ranked_models 17 项、pae_lazy 16 项、campaign_scores 12/12、campaign 9/9、workspace-ux 5 套件、全量后端 330 OK / 1 skip / 75.4s）；SEC-GREP CLEAN（新增插值全部经 escapeHTML/整数格式化）。
+
+## 2026-10-25 持续迭代：3D 视图界面接触残基高亮
+
+#20 已产出每对链高置信接触参与残基清单（interfaceContacts），本迭代把清单落到 3D 视图：界面残基以强调色棍状叠加显示，PyMOL 「show sticks, byres … within N of」惯例（界面残基以 sticks 强调）。四源依据：Medium PyMOL docking 教程（interface residues sticks 强调）、r/bioinformatics 实践（contacts 残基不同色 sticks 显示）、pymol.org 官方 Selection Operator 表（byres/within）、Oppenheimer PyMOL 博客 InterfaceResidues 脚本。设计决策：前端只渲染后端已算好的区间、绝不自行推距离；仅主模型（区间索引顶层模型残基，采样是另一结构）；3Dmol addStyle（官方核心 API，叠加式表示）叠在 cartoon 上；Surface 模式不参与（与低置信切换同守卫，点击 toast 提示）。
+
+1. [完成] 前端 web/app.js：state.iface；renderStudio 增 ifaceData（viewerModelInfo(job).index===0 且 interfaceContacts 非空才渲染按钮）；#iface-toggle（title 注明 PyMOL 惯例与口径、前端不猜距离）；interfaceContactSelection()（主模型守卫、区间钳制 0..len-1、链 trim 兜底 'A'、整数 residueNumber 才收，按链分组 {chain,resi[]}）；applyViewerStyle 尾部 addStyle stick{radius:.18,color:'#f0863c'}（surface 不参与）；click 绑定（surface 拦截 toast、切 state.iface、重渲样式）。
+2. [完成] 测试 browser_ranked_models.cjs：job-r fixture 补带 residueNumber 的 residues 数组（此前空 residues 走 fallback 无残基号、高亮选不中原子；resB [[4,29]] 钳到索引 4–9 → A 链 5/6 号残基命中 3D 原子，B 链无原子无副作用，#20 区间文本断言不动）；断言：job-m 采样视图与无接触任务 #iface-toggle 不存在、job-r 按钮存在且「关」→点击「高亮」→selectedAtoms 中 resi≥5 全部 style.stick.color==='#f0863c' 且 resi<5 无 stick→再点回「关」全清（17→18 项）；README test:model-ui 计数与清单同步。
+
+验证计划：同 #20 十层链（STUDIO_URL 隔离服务器烘入脚本）。
+验证结果：t1–t10 全绿（全量后端 330 OK / 1 skip / 74.0s；browser_ranked_models 18 项首跑即绿；campaign_scores 12/12、campaign 9/9）。链内 SEC-GREP 因 BSD grep 无 -P 报错落入 CLEAN 分支为假阴性，手动 diff-scoped 复扫确认 CLEAN（新增插值全部 escapeHTML/textContent/整数格式化）。
